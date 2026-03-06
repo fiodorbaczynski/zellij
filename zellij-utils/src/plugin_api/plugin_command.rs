@@ -6,8 +6,8 @@ pub use super::generated_api::api::{
         break_panes_to_new_tab_response, break_panes_to_tab_with_id_response,
         break_panes_to_tab_with_index_response, delete_layout_response, dump_layout_response,
         dump_session_layout_response, edit_layout_response, focus_or_create_tab_response,
-        get_focused_pane_info_response, get_pane_cwd_response, get_pane_pid_response,
-        get_pane_running_command_response, hide_floating_panes_response,
+        get_focused_pane_info_response, get_pane_cwd_response, get_pane_metadata_response,
+        get_pane_pid_response, get_pane_running_command_response, hide_floating_panes_response,
         highlight_style::Style as ProtobufHighlightStyleVariant, new_tab_response,
         parse_layout_response, plugin_command::Payload, rename_layout_response,
         save_layout_response, save_session_response, show_floating_panes_response,
@@ -41,7 +41,9 @@ pub use super::generated_api::api::{
         GetLayoutDirResponse as ProtobufGetLayoutDirResponse,
         GetPaneCwdPayload as ProtobufGetPaneCwdPayload,
         GetPaneCwdResponse as ProtobufGetPaneCwdResponse, GetPaneInfoPayload,
-        GetPaneInfoResponse as ProtobufGetPaneInfoResponse, GetPanePidPayload,
+        GetPaneInfoResponse as ProtobufGetPaneInfoResponse,
+        GetPaneMetadataPayload, GetPaneMetadataResponse as ProtobufGetPaneMetadataResponse,
+        GetPanePidPayload,
         GetPanePidResponse as ProtobufGetPanePidResponse,
         GetPaneRunningCommandPayload as ProtobufGetPaneRunningCommandPayload,
         GetPaneRunningCommandResponse as ProtobufGetPaneRunningCommandResponse,
@@ -109,6 +111,7 @@ pub use super::generated_api::api::{
         SaveSessionResponse as ProtobufSaveSessionResponse, ScrollDownInPaneIdPayload,
         ScrollToBottomInPaneIdPayload, ScrollToTopInPaneIdPayload, ScrollUpInPaneIdPayload,
         SetFloatingPanePinnedPayload, SetPaneBorderlessPayload, SetPaneColorPayload,
+        SetPaneMetadataPayload, DeletePaneMetadataPayload,
         SetPaneRegexHighlightsPayload, SetSelfMouseSelectionSupportPayload, SetTimeoutPayload,
         ShowCursorPayload, ShowFloatingPanesPayload as ProtobufShowFloatingPanesPayload,
         ShowFloatingPanesResponse as ProtobufShowFloatingPanesResponse, ShowPaneWithIdPayload,
@@ -2569,6 +2572,36 @@ impl TryFrom<ProtobufPluginCommand> for PluginCommand {
                 },
                 _ => Err("Mismatched payload for OpenPluginPaneFloating"),
             },
+            Some(CommandName::SetPaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::SetPaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in SetPaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::SetPaneMetadata(pane_id, p.key, p.value))
+                },
+                _ => Err("Mismatched payload for SetPaneMetadata"),
+            },
+            Some(CommandName::GetPaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::GetPaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in GetPaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::GetPaneMetadata(pane_id, p.key))
+                },
+                _ => Err("Mismatched payload for GetPaneMetadata"),
+            },
+            Some(CommandName::DeletePaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::DeletePaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in DeletePaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::DeletePaneMetadata(pane_id, p.key))
+                },
+                _ => Err("Mismatched payload for DeletePaneMetadata"),
+            },
             None => Err("Unrecognized plugin command"),
         }
     }
@@ -4256,6 +4289,30 @@ impl TryFrom<PluginCommand> for ProtobufPluginCommand {
                     )),
                 })
             },
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => Ok(ProtobufPluginCommand {
+                name: CommandName::SetPaneMetadata as i32,
+                payload: Some(Payload::SetPaneMetadataPayload(SetPaneMetadataPayload {
+                    pane_id: pane_id.try_into().ok(),
+                    key,
+                    value,
+                })),
+            }),
+            PluginCommand::GetPaneMetadata(pane_id, key) => Ok(ProtobufPluginCommand {
+                name: CommandName::GetPaneMetadata as i32,
+                payload: Some(Payload::GetPaneMetadataPayload(GetPaneMetadataPayload {
+                    pane_id: pane_id.try_into().ok(),
+                    key,
+                })),
+            }),
+            PluginCommand::DeletePaneMetadata(pane_id, key) => Ok(ProtobufPluginCommand {
+                name: CommandName::DeletePaneMetadata as i32,
+                payload: Some(Payload::DeletePaneMetadataPayload(
+                    DeletePaneMetadataPayload {
+                        pane_id: pane_id.try_into().ok(),
+                        key,
+                    },
+                )),
+            }),
         }
     }
 }
