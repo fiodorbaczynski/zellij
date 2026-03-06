@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::time::Instant;
 
 use crate::output::{CharacterChunk, SixelImageChunk};
@@ -107,6 +107,7 @@ pub(crate) struct PluginPane {
     should_be_suppressed: bool,
     text_being_pasted: Option<Vec<u8>>,
     supports_mouse_selection: bool,
+    metadata: BTreeMap<String, String>,
 }
 
 impl PluginPane {
@@ -164,6 +165,7 @@ impl PluginPane {
             should_be_suppressed: false,
             text_being_pasted: None,
             supports_mouse_selection: false,
+            metadata: BTreeMap::new(),
         };
         for client_id in currently_connected_clients {
             plugin.handle_plugin_bytes(client_id, initial_loading_message.as_bytes().to_vec());
@@ -747,6 +749,18 @@ impl Pane for PluginPane {
     }
     fn invoked_with(&self) -> &Option<Run> {
         &self.invoked_with
+    }
+    fn set_pane_metadata(&mut self, key: String, value: String) {
+        self.metadata.insert(key, value);
+    }
+    fn get_pane_metadata(&self, key: &str) -> Option<&String> {
+        self.metadata.get(key)
+    }
+    fn delete_pane_metadata(&mut self, key: &str) -> bool {
+        self.metadata.remove(key).is_some()
+    }
+    fn get_all_pane_metadata(&self) -> BTreeMap<String, String> {
+        self.metadata.clone()
     }
     fn set_title(&mut self, title: String) {
         self.pane_title = title;
