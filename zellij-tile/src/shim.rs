@@ -14,13 +14,14 @@ use zellij_utils::plugin_api::generated_api::api::plugin_command::{
 };
 use zellij_utils::plugin_api::plugin_command::{
     dump_layout_response, dump_session_layout_response, get_focused_pane_info_response,
-    get_pane_cwd_response, get_pane_running_command_response, parse_layout_response,
+    get_pane_cwd_response, get_pane_metadata_response, get_pane_running_command_response,
+    parse_layout_response,
     CreateTokenResponse, ListTokensResponse, ProtobufBreakPanesToNewTabResponse,
     ProtobufBreakPanesToTabWithIdResponse, ProtobufBreakPanesToTabWithIndexResponse,
     ProtobufCurrentSessionLastSavedTimeResponse, ProtobufDeleteLayoutResponse,
     ProtobufDumpLayoutResponse, ProtobufDumpSessionLayoutResponse, ProtobufEditLayoutResponse,
     ProtobufFocusOrCreateTabResponse, ProtobufGenerateRandomNameResponse,
-    ProtobufGetFocusedPaneInfoResponse, ProtobufGetLayoutDirResponse, ProtobufGetPaneCwdResponse,
+    ProtobufGetFocusedPaneInfoResponse, ProtobufGetLayoutDirResponse, ProtobufGetPaneCwdResponse, ProtobufGetPaneMetadataResponse,
     ProtobufGetPaneInfoResponse, ProtobufGetPanePidResponse, ProtobufGetPaneRunningCommandResponse,
     ProtobufGetSessionEnvironmentVariablesResponse, ProtobufGetTabInfoResponse,
     ProtobufHideFloatingPanesResponse, ProtobufNewTabResponse, ProtobufNewTabsResponse,
@@ -2780,6 +2781,40 @@ pub fn set_pane_regex_highlights(pane_id: PaneId, highlights: Vec<RegexHighlight
 /// Requires `ChangeApplicationState` permission.
 pub fn clear_pane_highlights(pane_id: PaneId) {
     let plugin_command = PluginCommand::ClearPaneHighlights(pane_id);
+    let protobuf_plugin_command: ProtobufPluginCommand = plugin_command.try_into().unwrap();
+    object_to_stdout(&protobuf_plugin_command.encode_to_vec());
+    unsafe { host_run_plugin_command() };
+}
+
+/// Set a metadata key-value pair on a pane. Metadata is stored server-side and shared across all
+/// clients. Use this for shell integration (e.g. setting `nix_shell` or `is_helix` from fish).
+pub fn set_pane_metadata(pane_id: PaneId, key: &str, value: &str) {
+    let plugin_command =
+        PluginCommand::SetPaneMetadata(pane_id, key.to_owned(), value.to_owned());
+    let protobuf_plugin_command: ProtobufPluginCommand = plugin_command.try_into().unwrap();
+    object_to_stdout(&protobuf_plugin_command.encode_to_vec());
+    unsafe { host_run_plugin_command() };
+}
+
+/// Get a metadata value for a key on a pane. Returns `None` if the key is not set.
+pub fn get_pane_metadata(pane_id: PaneId, key: &str) -> Option<String> {
+    let plugin_command = PluginCommand::GetPaneMetadata(pane_id, key.to_owned());
+    let protobuf_plugin_command: ProtobufPluginCommand = plugin_command.try_into().unwrap();
+    object_to_stdout(&protobuf_plugin_command.encode_to_vec());
+    unsafe { host_run_plugin_command() };
+
+    let response_bytes = bytes_from_stdin().ok()?;
+    let protobuf_response =
+        ProtobufGetPaneMetadataResponse::decode(response_bytes.as_slice()).ok()?;
+    match protobuf_response.result {
+        Some(get_pane_metadata_response::Result::Value(v)) => Some(v),
+        _ => None,
+    }
+}
+
+/// Delete a metadata key from a pane.
+pub fn delete_pane_metadata(pane_id: PaneId, key: &str) {
+    let plugin_command = PluginCommand::DeletePaneMetadata(pane_id, key.to_owned());
     let protobuf_plugin_command: ProtobufPluginCommand = plugin_command.try_into().unwrap();
     object_to_stdout(&protobuf_plugin_command.encode_to_vec());
     unsafe { host_run_plugin_command() };

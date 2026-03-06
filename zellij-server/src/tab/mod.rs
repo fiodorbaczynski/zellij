@@ -327,6 +327,16 @@ pub trait Pane {
     fn get_pane_default_colors(&self) -> (Option<String>, Option<String>) {
         (None, None)
     }
+    fn set_pane_metadata(&mut self, _key: String, _value: String) {}
+    fn get_pane_metadata(&self, _key: &str) -> Option<&String> {
+        None
+    }
+    fn delete_pane_metadata(&mut self, _key: &str) -> bool {
+        false
+    }
+    fn get_all_pane_metadata(&self) -> BTreeMap<String, String> {
+        BTreeMap::new()
+    }
 
     fn right_boundary_x_coords(&self) -> usize {
         self.x() + self.cols()
@@ -2598,6 +2608,54 @@ impl Tab {
             pane.set_pane_default_colors(fg, bg);
         }
         Ok(())
+    }
+    pub fn set_pane_metadata(
+        &mut self,
+        pane_id: PaneId,
+        key: String,
+        value: String,
+    ) {
+        let pane = self
+            .floating_panes
+            .get_mut(&pane_id)
+            .or_else(|| self.tiled_panes.get_pane_mut(pane_id))
+            .or_else(|| self.suppressed_panes.get_mut(&pane_id).map(|p| &mut p.1));
+        if let Some(pane) = pane {
+            pane.set_pane_metadata(key, value);
+        }
+    }
+    pub fn get_pane_metadata(
+        &self,
+        pane_id: PaneId,
+        key: &str,
+    ) -> Option<String> {
+        self.floating_panes
+            .get(&pane_id)
+            .and_then(|p| p.get_pane_metadata(key).cloned())
+            .or_else(|| {
+                self.tiled_panes
+                    .get_pane(pane_id)
+                    .and_then(|p| p.get_pane_metadata(key).cloned())
+            })
+            .or_else(|| {
+                self.suppressed_panes
+                    .get(&pane_id)
+                    .and_then(|p| p.1.get_pane_metadata(key).cloned())
+            })
+    }
+    pub fn delete_pane_metadata(
+        &mut self,
+        pane_id: PaneId,
+        key: &str,
+    ) {
+        let pane = self
+            .floating_panes
+            .get_mut(&pane_id)
+            .or_else(|| self.tiled_panes.get_pane_mut(pane_id))
+            .or_else(|| self.suppressed_panes.get_mut(&pane_id).map(|p| &mut p.1));
+        if let Some(pane) = pane {
+            pane.delete_pane_metadata(key);
+        }
     }
     pub fn has_pane_with_pid(&self, pid: &PaneId) -> bool {
         self.tiled_panes.panes_contain(pid)
@@ -5989,6 +6047,7 @@ pub fn pane_info_for_pane(
     let (default_fg, default_bg) = pane.get_pane_default_colors();
     pane_info.default_fg = default_fg;
     pane_info.default_bg = default_bg;
+    pane_info.metadata = pane.get_all_pane_metadata();
 
     match pane_id {
         PaneId::Terminal(terminal_id) => {

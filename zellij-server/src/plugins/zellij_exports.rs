@@ -745,6 +745,15 @@ fn host_run_plugin_command(mut caller: Caller<'_, PluginEnv>) {
                     PluginCommand::ClearPaneHighlights(pane_id) => {
                         clear_pane_highlights(env, pane_id)
                     },
+                    PluginCommand::SetPaneMetadata(pane_id, key, value) => {
+                        set_pane_metadata(env, pane_id, key, value)
+                    },
+                    PluginCommand::GetPaneMetadata(pane_id, key) => {
+                        get_pane_metadata(env, pane_id, key)
+                    },
+                    PluginCommand::DeletePaneMetadata(pane_id, key) => {
+                        delete_pane_metadata(env, pane_id, key)
+                    },
                 },
                 (PermissionStatus::Denied, permission) => {
                     log::error!(
@@ -3655,6 +3664,57 @@ fn set_pane_color(env: &PluginEnv, pane_id: PaneId, fg: Option<String>, bg: Opti
         .send_to_screen(ScreenInstruction::SetPaneColor(pane_id, fg, bg, None));
 }
 
+fn set_pane_metadata(env: &PluginEnv, pane_id: zellij_utils::data::PaneId, key: String, value: String) {
+    let pane_id: PaneId = pane_id.into();
+    let _ = env
+        .senders
+        .send_to_screen(ScreenInstruction::SetPaneMetadata(pane_id, key, value));
+}
+
+fn get_pane_metadata(env: &PluginEnv, pane_id: zellij_utils::data::PaneId, key: String) {
+    use crossbeam::channel::RecvTimeoutError;
+    use std::time::Duration;
+    use zellij_utils::plugin_api::plugin_command::ProtobufGetPaneMetadataResponse;
+    use zellij_utils::plugin_api::plugin_command::get_pane_metadata_response;
+
+    let pane_id: PaneId = pane_id.into();
+    let (response_sender, response_receiver) = crossbeam::channel::bounded(1);
+
+    let _ = env.senders.send_to_screen(ScreenInstruction::GetPaneMetadata {
+        pane_id,
+        key: key.clone(),
+        response_channel: response_sender,
+    });
+
+    let result = match response_receiver.recv_timeout(Duration::from_millis(100)) {
+        Ok(Some(value)) => {
+            Some(get_pane_metadata_response::Result::Value(value))
+        },
+        Ok(None) => None,
+        Err(RecvTimeoutError::Timeout) => {
+            log::error!("GetPaneMetadata timed out for pane {:?}", pane_id);
+            Some(get_pane_metadata_response::Result::Error(
+                "Timed out".to_string(),
+            ))
+        },
+        Err(RecvTimeoutError::Disconnected) => {
+            Some(get_pane_metadata_response::Result::Error(
+                "Channel disconnected".to_string(),
+            ))
+        },
+    };
+
+    let response = ProtobufGetPaneMetadataResponse { result };
+    let _ = wasi_write_object(env, &response.encode_to_vec());
+}
+
+fn delete_pane_metadata(env: &PluginEnv, pane_id: zellij_utils::data::PaneId, key: String) {
+    let pane_id: PaneId = pane_id.into();
+    let _ = env
+        .senders
+        .send_to_screen(ScreenInstruction::DeletePaneMetadata(pane_id, key));
+}
+
 fn scan_host_folder(env: &PluginEnv, folder_to_scan: PathBuf) {
     if !folder_to_scan.starts_with("/host") {
         log::error!(
@@ -5132,7 +5192,10 @@ fn check_command_permission(
         | PluginCommand::ShowFloatingPanes { .. }
         | PluginCommand::HideFloatingPanes { .. }
         | PluginCommand::SetPaneRegexHighlights(..)
-        | PluginCommand::ClearPaneHighlights(..) => PermissionType::ChangeApplicationState,
+        | PluginCommand::ClearPaneHighlights(..)
+        | PluginCommand::SetPaneMetadata(..)
+        | PluginCommand::DeletePaneMetadata(..) => PermissionType::ChangeApplicationState,
+        PluginCommand::GetPaneMetadata(..) => PermissionType::ReadApplicationState,
         PluginCommand::UnblockCliPipeInput(..)
         | PluginCommand::BlockCliPipeInput(..)
         | PluginCommand::CliPipeOutput(..) => PermissionType::ReadCliPipes,

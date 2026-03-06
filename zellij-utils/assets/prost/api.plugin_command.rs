@@ -3,7 +3,7 @@
 pub struct PluginCommand {
     #[prost(enumeration="CommandName", tag="1")]
     pub name: i32,
-    #[prost(oneof="plugin_command::Payload", tags="2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159")]
+    #[prost(oneof="plugin_command::Payload", tags="2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162")]
     pub payload: ::core::option::Option<plugin_command::Payload>,
 }
 /// Nested message and enum types in `PluginCommand`.
@@ -301,6 +301,12 @@ pub mod plugin_command {
         SetPaneRegexHighlightsPayload(super::SetPaneRegexHighlightsPayload),
         #[prost(message, tag="159")]
         ClearPaneHighlightsPayload(super::ClearPaneHighlightsPayload),
+        #[prost(message, tag="160")]
+        SetPaneMetadataPayload(super::SetPaneMetadataPayload),
+        #[prost(message, tag="161")]
+        GetPaneMetadataPayload(super::GetPaneMetadataPayload),
+        #[prost(message, tag="162")]
+        DeletePaneMetadataPayload(super::DeletePaneMetadataPayload),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -1879,6 +1885,49 @@ pub struct ClearPaneHighlightsPayload {
     #[prost(message, optional, tag="1")]
     pub pane_id: ::core::option::Option<PaneId>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SetPaneMetadataPayload {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(string, tag="2")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPaneMetadataPayload {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(string, tag="2")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeletePaneMetadataPayload {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(string, tag="2")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPaneMetadataResponse {
+    #[prost(oneof="get_pane_metadata_response::Result", tags="1, 2")]
+    pub result: ::core::option::Option<get_pane_metadata_response::Result>,
+}
+/// Nested message and enum types in `GetPaneMetadataResponse`.
+pub mod get_pane_metadata_response {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Result {
+        #[prost(string, tag="1")]
+        Value(::prost::alloc::string::String),
+        #[prost(string, tag="2")]
+        Error(::prost::alloc::string::String),
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum CommandName {
@@ -2070,6 +2119,9 @@ pub enum CommandName {
     SetPaneColor = 206,
     SetPaneRegexHighlights = 207,
     ClearPaneHighlights = 208,
+    SetPaneMetadata = 209,
+    GetPaneMetadata = 210,
+    DeletePaneMetadata = 211,
 }
 impl CommandName {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2266,6 +2318,9 @@ impl CommandName {
             CommandName::SetPaneColor => "SetPaneColor",
             CommandName::SetPaneRegexHighlights => "SetPaneRegexHighlights",
             CommandName::ClearPaneHighlights => "ClearPaneHighlights",
+            CommandName::SetPaneMetadata => "SetPaneMetadata",
+            CommandName::GetPaneMetadata => "GetPaneMetadata",
+            CommandName::DeletePaneMetadata => "DeletePaneMetadata",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2459,6 +2514,9 @@ impl CommandName {
             "SetPaneColor" => Some(Self::SetPaneColor),
             "SetPaneRegexHighlights" => Some(Self::SetPaneRegexHighlights),
             "ClearPaneHighlights" => Some(Self::ClearPaneHighlights),
+            "SetPaneMetadata" => Some(Self::SetPaneMetadata),
+            "GetPaneMetadata" => Some(Self::GetPaneMetadata),
+            "DeletePaneMetadata" => Some(Self::DeletePaneMetadata),
             _ => None,
         }
     }

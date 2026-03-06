@@ -201,6 +201,9 @@ enum CommandName {
   SetPaneColor = 206;
   SetPaneRegexHighlights = 207;
   ClearPaneHighlights = 208;
+  SetPaneMetadata = 209;
+  GetPaneMetadata = 210;
+  DeletePaneMetadata = 211;
 }
 
 message PluginCommand {
@@ -351,6 +354,9 @@ message PluginCommand {
     SetPaneColorPayload set_pane_color_payload = 157;
     SetPaneRegexHighlightsPayload set_pane_regex_highlights_payload = 158;
     ClearPaneHighlightsPayload clear_pane_highlights_payload = 159;
+    SetPaneMetadataPayload set_pane_metadata_payload = 160;
+    GetPaneMetadataPayload get_pane_metadata_payload = 161;
+    DeletePaneMetadataPayload delete_pane_metadata_payload = 162;
   }
 }
 
@@ -1280,4 +1286,27 @@ message SetPaneRegexHighlightsPayload {
 
 message ClearPaneHighlightsPayload {
   PaneId pane_id = 1;
+}
+
+message SetPaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message GetPaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+}
+
+message DeletePaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+}
+
+message GetPaneMetadataResponse {
+  oneof result {
+    string value = 1;
+    string error = 2;
+  }
 }
