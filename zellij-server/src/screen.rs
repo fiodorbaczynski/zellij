@@ -700,6 +700,13 @@ pub enum ScreenInstruction {
         Option<String>,
         Option<NotificationEnd>,
     ),
+    SetPaneMetadata(PaneId, String, String),    // pane_id, key, value
+    GetPaneMetadata {
+        pane_id: PaneId,
+        key: String,
+        response_channel: crossbeam::channel::Sender<Option<String>>,
+    },
+    DeletePaneMetadata(PaneId, String),         // pane_id, key
     WriteKeyToPaneId(
         Option<KeyWithModifier>,
         Vec<u8>,
@@ -1020,6 +1027,9 @@ impl From<&ScreenInstruction> for ScreenContext {
             ScreenInstruction::WriteToPaneId(..) => ScreenContext::WriteToPaneId,
             ScreenInstruction::Paste(..) => ScreenContext::Paste,
             ScreenInstruction::SetPaneColor(..) => ScreenContext::SetPaneColor,
+            ScreenInstruction::SetPaneMetadata(..) => ScreenContext::SetPaneMetadata,
+            ScreenInstruction::GetPaneMetadata { .. } => ScreenContext::GetPaneMetadata,
+            ScreenInstruction::DeletePaneMetadata(..) => ScreenContext::DeletePaneMetadata,
             ScreenInstruction::WriteKeyToPaneId(..) => ScreenContext::WriteKeyToPaneId,
             ScreenInstruction::CopyTextToClipboard(..) => ScreenContext::CopyTextToClipboard,
             ScreenInstruction::MovePaneWithPaneId(..) => ScreenContext::MovePaneWithPaneId,
@@ -8126,6 +8136,41 @@ pub(crate) fn screen_thread_main(
                 for tab in all_tabs.values_mut() {
                     if tab.has_pane_with_pid(&pane_id) {
                         tab.set_pane_color(pane_id, fg, bg).non_fatal();
+                        break;
+                    }
+                }
+                screen.render(None)?;
+            },
+            ScreenInstruction::SetPaneMetadata(pane_id, key, value) => {
+                let all_tabs = screen.get_tabs_mut();
+                for tab in all_tabs.values_mut() {
+                    if tab.has_pane_with_pid(&pane_id) {
+                        tab.set_pane_metadata(pane_id, key, value);
+                        break;
+                    }
+                }
+                screen.render(None)?;
+            },
+            ScreenInstruction::GetPaneMetadata {
+                pane_id,
+                key,
+                response_channel,
+            } => {
+                let mut result = None;
+                let all_tabs = screen.get_tabs_mut();
+                for tab in all_tabs.values() {
+                    if tab.has_pane_with_pid(&pane_id) {
+                        result = tab.get_pane_metadata(pane_id, &key);
+                        break;
+                    }
+                }
+                let _ = response_channel.send(result);
+            },
+            ScreenInstruction::DeletePaneMetadata(pane_id, key) => {
+                let all_tabs = screen.get_tabs_mut();
+                for tab in all_tabs.values_mut() {
+                    if tab.has_pane_with_pid(&pane_id) {
+                        tab.delete_pane_metadata(pane_id, &key);
                         break;
                     }
                 }

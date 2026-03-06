@@ -10,7 +10,7 @@ use crate::route::NotificationEnd;
 use crate::tab::{AdjustedInput, Pane};
 use crate::ClientId;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::{self, Instant};
@@ -153,6 +153,7 @@ pub struct TerminalPane {
     #[allow(dead_code)]
     arrow_fonts: bool,
     notification_end: Option<NotificationEnd>,
+    metadata: BTreeMap<String, String>,
 }
 
 impl Pane for TerminalPane {
@@ -323,6 +324,18 @@ impl Pane for TerminalPane {
     }
     fn get_pane_default_colors(&self) -> (Option<String>, Option<String>) {
         self.grid.get_pane_default_color_strings()
+    }
+    fn set_pane_metadata(&mut self, key: String, value: String) {
+        self.metadata.insert(key, value);
+    }
+    fn get_pane_metadata(&self, key: &str) -> Option<&String> {
+        self.metadata.get(key)
+    }
+    fn delete_pane_metadata(&mut self, key: &str) -> bool {
+        self.metadata.remove(key).is_some()
+    }
+    fn get_all_pane_metadata(&self) -> BTreeMap<String, String> {
+        self.metadata.clone()
     }
     fn render(
         &mut self,
@@ -1085,6 +1098,7 @@ impl TerminalPane {
             invoked_with,
             arrow_fonts,
             notification_end,
+            metadata: BTreeMap::new(),
         }
     }
     pub fn get_x(&self) -> usize {
