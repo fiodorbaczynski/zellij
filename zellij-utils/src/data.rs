@@ -1025,6 +1025,7 @@ pub enum Event {
     /// Plugins that subscribe to this event signal they cache keybindings
     /// and can handle lightweight ModeUpdate events without keybindings.
     InitialKeybinds(KeybindsVec),
+    PaneMetadataUpdate(PaneId, BTreeMap<String, String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumDiscriminants, Display, Serialize, Deserialize)]

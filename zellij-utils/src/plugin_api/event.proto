@@ -68,6 +68,7 @@ enum EventType {
     PaneRenderReportWithAnsi = 43;
     InitialKeybinds = 44;
     CommandChanged = 45;
+    PaneMetadataUpdate = 46;
 }
 
 message EventNameList {
@@ -115,6 +116,7 @@ message Event {
     PaneRenderReportPayload pane_render_report_with_ansi_payload = 37;
     InitialKeybindsPayload initial_keybinds_payload = 38;
     CommandChangedPayload command_changed_payload = 39;
+    PaneMetadataUpdatePayload pane_metadata_update_payload = 40;
   }
 }
 
@@ -542,5 +544,10 @@ message HighlightClickedPayload {
 
 message InitialKeybindsPayload {
   repeated InputModeKeybinds keybinds = 1;
+}
+
+message PaneMetadataUpdatePayload {
+  PaneId pane_id = 1;
+  map<string, string> metadata = 2;
 }
 

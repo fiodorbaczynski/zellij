@@ -9,7 +9,7 @@ pub struct EventNameList {
 pub struct Event {
     #[prost(enumeration="EventType", tag="1")]
     pub name: i32,
-    #[prost(oneof="event::Payload", tags="2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39")]
+    #[prost(oneof="event::Payload", tags="2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40")]
     pub payload: ::core::option::Option<event::Payload>,
 }
 /// Nested message and enum types in `Event`.
@@ -93,6 +93,8 @@ pub mod event {
         InitialKeybindsPayload(super::InitialKeybindsPayload),
         #[prost(message, tag="39")]
         CommandChangedPayload(super::CommandChangedPayload),
+        #[prost(message, tag="40")]
+        PaneMetadataUpdatePayload(super::PaneMetadataUpdatePayload),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -769,6 +771,14 @@ pub struct InitialKeybindsPayload {
     #[prost(message, repeated, tag="1")]
     pub keybinds: ::prost::alloc::vec::Vec<InputModeKeybinds>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PaneMetadataUpdatePayload {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(map="string, string", tag="2")]
+    pub metadata: ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EventType {
@@ -832,6 +842,7 @@ pub enum EventType {
     PaneRenderReportWithAnsi = 43,
     InitialKeybinds = 44,
     CommandChanged = 45,
+    PaneMetadataUpdate = 46,
 }
 impl EventType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -885,6 +896,7 @@ impl EventType {
             EventType::PaneRenderReportWithAnsi => "PaneRenderReportWithAnsi",
             EventType::InitialKeybinds => "InitialKeybinds",
             EventType::CommandChanged => "CommandChanged",
+            EventType::PaneMetadataUpdate => "PaneMetadataUpdate",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -935,6 +947,7 @@ impl EventType {
             "PaneRenderReportWithAnsi" => Some(Self::PaneRenderReportWithAnsi),
             "InitialKeybinds" => Some(Self::InitialKeybinds),
             "CommandChanged" => Some(Self::CommandChanged),
+            "PaneMetadataUpdate" => Some(Self::PaneMetadataUpdate),
             _ => None,
         }
     }
