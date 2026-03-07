@@ -333,6 +333,7 @@ pub(crate) fn route_action(
                     value,
                 ))
                 .with_context(err_context)?;
+            drop(NotificationEnd::new(completion_tx));
         },
         Action::DeletePaneMetadata { pane_id, key } => {
             senders
@@ -341,6 +342,7 @@ pub(crate) fn route_action(
                     key,
                 ))
                 .with_context(err_context)?;
+            drop(NotificationEnd::new(completion_tx));
         },
         Action::SwitchToMode { input_mode } => {
             let attrs = &client_attributes;
