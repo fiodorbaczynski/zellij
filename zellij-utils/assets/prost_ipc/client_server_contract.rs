@@ -401,6 +401,10 @@ pub mod action {
         FocusPaneByPaneId(super::FocusPaneByPaneIdAction),
         #[prost(message, tag="136")]
         AreFloatingPanesVisible(super::AreFloatingPanesVisibleAction),
+        #[prost(message, tag="137")]
+        SetPaneMetadata(super::SetPaneMetadataAction),
+        #[prost(message, tag="138")]
+        DeletePaneMetadata(super::DeletePaneMetadataAction),
     }
 }
 // Action message definitions (all 92 variants)
@@ -1238,6 +1242,24 @@ pub struct SetPaneColorAction {
     pub fg: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag="3")]
     pub bg: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SetPaneMetadataAction {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(string, tag="2")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeletePaneMetadataAction {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(string, tag="2")]
+    pub key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
