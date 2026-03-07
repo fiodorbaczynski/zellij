@@ -342,6 +342,17 @@ pub enum Action {
         fg: Option<String>,
         bg: Option<String>,
     },
+    /// Set a metadata key-value pair on a pane
+    SetPaneMetadata {
+        pane_id: PaneId,
+        key: String,
+        value: String,
+    },
+    /// Delete a metadata key from a pane
+    DeletePaneMetadata {
+        pane_id: PaneId,
+        key: String,
+    },
     /// Detach session and exit
     Detach,
     /// Switch to a different session
@@ -1875,6 +1886,54 @@ impl Action {
                             pane_id: parsed_pane_id,
                             fg,
                             bg,
+                        }])
+                    },
+                    Err(_e) => Err(format!(
+                        "Malformed pane id: {}, expecting either a bare integer (eg. 1), a terminal pane id (eg. terminal_1) or a plugin pane id (eg. plugin_1)",
+                        pane_id_str
+                    )),
+                }
+            },
+            CliAction::SetPaneMetadata {
+                pane_id,
+                key,
+                value,
+            } => {
+                let pane_id_str = match pane_id {
+                    Some(id) => id,
+                    None => std::env::var("ZELLIJ_PANE_ID").map_err(|_| {
+                        "No --pane-id provided and ZELLIJ_PANE_ID is not set".to_string()
+                    })?,
+                };
+                match PaneId::from_str(&pane_id_str) {
+                    Ok(parsed_pane_id) => {
+                        Ok(vec![Action::SetPaneMetadata {
+                            pane_id: parsed_pane_id,
+                            key,
+                            value,
+                        }])
+                    },
+                    Err(_e) => Err(format!(
+                        "Malformed pane id: {}, expecting either a bare integer (eg. 1), a terminal pane id (eg. terminal_1) or a plugin pane id (eg. plugin_1)",
+                        pane_id_str
+                    )),
+                }
+            },
+            CliAction::DeletePaneMetadata {
+                pane_id,
+                key,
+            } => {
+                let pane_id_str = match pane_id {
+                    Some(id) => id,
+                    None => std::env::var("ZELLIJ_PANE_ID").map_err(|_| {
+                        "No --pane-id provided and ZELLIJ_PANE_ID is not set".to_string()
+                    })?,
+                };
+                match PaneId::from_str(&pane_id_str) {
+                    Ok(parsed_pane_id) => {
+                        Ok(vec![Action::DeletePaneMetadata {
+                            pane_id: parsed_pane_id,
+                            key,
                         }])
                     },
                     Err(_e) => Err(format!(

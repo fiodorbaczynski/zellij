@@ -272,6 +272,8 @@ message Action {
     PreviousSwapLayoutByTabIdAction previous_swap_layout_by_tab_id = 132;
     NextSwapLayoutByTabIdAction next_swap_layout_by_tab_id = 133;
     MoveTabByTabIdAction move_tab_by_tab_id = 134;
+    SetPaneMetadataAction set_pane_metadata = 135;
+    DeletePaneMetadataAction delete_pane_metadata = 136;
   }
 }
 
@@ -694,6 +696,17 @@ message SetPaneColorAction {
   PaneId pane_id = 1;
   optional string fg = 2;
   optional string bg = 3;
+}
+
+message SetPaneMetadataAction {
+  PaneId pane_id = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message DeletePaneMetadataAction {
+  PaneId pane_id = 1;
+  string key = 2;
 }
 
 // Supporting enums and messages
