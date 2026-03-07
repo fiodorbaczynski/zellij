@@ -66,6 +66,7 @@ enum EventType {
     PluginConfigurationChanged = 41;
     HighlightClicked = 42;
     PaneRenderReportWithAnsi = 43;
+    PaneMetadataUpdate = 44;
 }
 
 message EventNameList {
@@ -111,6 +112,7 @@ message Event {
     PluginConfigurationChangedPayload plugin_configuration_changed_payload = 35;
     HighlightClickedPayload highlight_clicked_payload = 36;
     PaneRenderReportPayload pane_render_report_with_ansi_payload = 37;
+    PaneMetadataUpdatePayload pane_metadata_update_payload = 38;
   }
 }
 
@@ -527,5 +529,10 @@ message HighlightClickedPayload {
   string pattern = 2;
   string matched_string = 3;
   repeated ContextItem context = 4;
+}
+
+message PaneMetadataUpdatePayload {
+  PaneId pane_id = 1;
+  map<string, string> metadata = 2;
 }
 

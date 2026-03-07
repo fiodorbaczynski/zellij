@@ -1020,6 +1020,7 @@ pub enum Event {
         matched_string: String,
         context: BTreeMap<String, String>,
     },
+    PaneMetadataUpdate(PaneId, BTreeMap<String, String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumDiscriminants, Display, Serialize, Deserialize)]

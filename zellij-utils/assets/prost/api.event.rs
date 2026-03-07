@@ -89,6 +89,8 @@ pub mod event {
         HighlightClickedPayload(super::HighlightClickedPayload),
         #[prost(message, tag="37")]
         PaneRenderReportWithAnsiPayload(super::PaneRenderReportPayload),
+        #[prost(message, tag="38")]
+        PaneMetadataUpdatePayload(super::PaneMetadataUpdatePayload),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -747,6 +749,14 @@ pub struct HighlightClickedPayload {
     #[prost(message, repeated, tag="4")]
     pub context: ::prost::alloc::vec::Vec<ContextItem>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PaneMetadataUpdatePayload {
+    #[prost(message, optional, tag="1")]
+    pub pane_id: ::core::option::Option<PaneId>,
+    #[prost(map="string, string", tag="2")]
+    pub metadata: ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EventType {
@@ -808,6 +818,7 @@ pub enum EventType {
     PluginConfigurationChanged = 41,
     HighlightClicked = 42,
     PaneRenderReportWithAnsi = 43,
+    PaneMetadataUpdate = 44,
 }
 impl EventType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -859,6 +870,7 @@ impl EventType {
             EventType::PluginConfigurationChanged => "PluginConfigurationChanged",
             EventType::HighlightClicked => "HighlightClicked",
             EventType::PaneRenderReportWithAnsi => "PaneRenderReportWithAnsi",
+            EventType::PaneMetadataUpdate => "PaneMetadataUpdate",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -907,6 +919,7 @@ impl EventType {
             "PluginConfigurationChanged" => Some(Self::PluginConfigurationChanged),
             "HighlightClicked" => Some(Self::HighlightClicked),
             "PaneRenderReportWithAnsi" => Some(Self::PaneRenderReportWithAnsi),
+            "PaneMetadataUpdate" => Some(Self::PaneMetadataUpdate),
             _ => None,
         }
     }
