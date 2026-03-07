@@ -1642,6 +1642,7 @@ pub(crate) fn route_action(
             } else {
                 log::error!("Message must have a name");
             }
+            drop(NotificationEnd::new(completion_tx));
         },
         Action::ListClients => {
             let default_shell = match default_shell {
