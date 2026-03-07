@@ -325,6 +325,23 @@ pub(crate) fn route_action(
                 ))
                 .with_context(err_context)?;
         },
+        Action::SetPaneMetadata { pane_id, key, value } => {
+            senders
+                .send_to_screen(ScreenInstruction::SetPaneMetadata(
+                    pane_id.into(),
+                    key,
+                    value,
+                ))
+                .with_context(err_context)?;
+        },
+        Action::DeletePaneMetadata { pane_id, key } => {
+            senders
+                .send_to_screen(ScreenInstruction::DeletePaneMetadata(
+                    pane_id.into(),
+                    key,
+                ))
+                .with_context(err_context)?;
+        },
         Action::SwitchToMode { input_mode } => {
             let attrs = &client_attributes;
             senders
