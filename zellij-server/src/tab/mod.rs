@@ -2675,6 +2675,24 @@ impl Tab {
             pane.delete_pane_metadata(key);
         }
     }
+    pub fn get_all_pane_metadata(
+        &self,
+        pane_id: PaneId,
+    ) -> Option<BTreeMap<String, String>> {
+        self.floating_panes
+            .get(&pane_id)
+            .map(|p| p.get_all_pane_metadata())
+            .or_else(|| {
+                self.tiled_panes
+                    .get_pane(pane_id)
+                    .map(|p| p.get_all_pane_metadata())
+            })
+            .or_else(|| {
+                self.suppressed_panes
+                    .get(&pane_id)
+                    .map(|p| p.1.get_all_pane_metadata())
+            })
+    }
     pub fn has_pane_with_pid(&self, pid: &PaneId) -> bool {
         self.tiled_panes.panes_contain(pid)
             || self.floating_panes.panes_contain(pid)

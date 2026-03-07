@@ -18,6 +18,7 @@ pub use super::generated_api::api::{
         PaneContents as ProtobufPaneContents, PaneContentsEntry as ProtobufPaneContentsEntry,
         PaneId as ProtobufPaneId, PaneInfo as ProtobufPaneInfo,
         PaneManifest as ProtobufPaneManifest, PaneMetadata as ProtobufPaneMetadata,
+        PaneMetadataUpdatePayload as ProtobufPaneMetadataUpdatePayload,
         PaneRenderReportPayload as ProtobufPaneRenderReportPayload,
         PaneScrollbackResponse as ProtobufPaneScrollbackResponse, PaneType as ProtobufPaneType,
         PluginConfigurationChangedPayload as ProtobufPluginConfigurationChangedPayload,
@@ -555,6 +556,16 @@ impl TryFrom<ProtobufEvent> for Event {
                     Ok(Event::InitialKeybinds(keybinds))
                 },
                 _ => Err("Malformed payload for InitialKeybinds Event"),
+            },
+            Some(ProtobufEventType::PaneMetadataUpdate) => match protobuf_event.payload {
+                Some(ProtobufEventPayload::PaneMetadataUpdatePayload(p)) => {
+                    let pane_id = p
+                        .pane_id
+                        .ok_or("Missing pane_id in PaneMetadataUpdate")?
+                        .try_into()?;
+                    Ok(Event::PaneMetadataUpdate(pane_id, p.metadata.into_iter().collect()))
+                },
+                _ => Err("Malformed payload for PaneMetadataUpdate Event"),
             },
             None => Err("Unknown Protobuf Event"),
         }
@@ -1104,6 +1115,15 @@ impl TryFrom<Event> for ProtobufEvent {
                     )),
                 })
             },
+            Event::PaneMetadataUpdate(pane_id, metadata) => Ok(ProtobufEvent {
+                name: ProtobufEventType::PaneMetadataUpdate as i32,
+                payload: Some(event::Payload::PaneMetadataUpdatePayload(
+                    PaneMetadataUpdatePayload {
+                        pane_id: pane_id.try_into().ok(),
+                        metadata: metadata.into_iter().collect(),
+                    },
+                )),
+            }),
         }
     }
 }
@@ -2021,6 +2041,7 @@ impl TryFrom<ProtobufEventType> for EventType {
             ProtobufEventType::PluginConfigurationChanged => EventType::PluginConfigurationChanged,
             ProtobufEventType::HighlightClicked => EventType::HighlightClicked,
             ProtobufEventType::InitialKeybinds => EventType::InitialKeybinds,
+            ProtobufEventType::PaneMetadataUpdate => EventType::PaneMetadataUpdate,
         })
     }
 }
@@ -2073,6 +2094,7 @@ impl TryFrom<EventType> for ProtobufEventType {
             EventType::PluginConfigurationChanged => ProtobufEventType::PluginConfigurationChanged,
             EventType::HighlightClicked => ProtobufEventType::HighlightClicked,
             EventType::InitialKeybinds => ProtobufEventType::InitialKeybinds,
+            EventType::PaneMetadataUpdate => ProtobufEventType::PaneMetadataUpdate,
         })
     }
 }

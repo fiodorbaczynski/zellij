@@ -8088,11 +8088,23 @@ pub(crate) fn screen_thread_main(
             },
             ScreenInstruction::SetPaneMetadata(pane_id, key, value) => {
                 let all_tabs = screen.get_tabs_mut();
+                let mut metadata = None;
                 for tab in all_tabs.values_mut() {
                     if tab.has_pane_with_pid(&pane_id) {
                         tab.set_pane_metadata(pane_id, key, value);
+                        metadata = tab.get_all_pane_metadata(pane_id);
                         break;
                     }
+                }
+                if let Some(metadata) = metadata {
+                    screen.bus
+                        .senders
+                        .send_to_plugin(PluginInstruction::Update(vec![(
+                            None,
+                            None,
+                            Event::PaneMetadataUpdate(pane_id.into(), metadata),
+                        )]))
+                        .context("failed to send PaneMetadataUpdate")?;
                 }
                 screen.render(None)?;
             },
@@ -8113,11 +8125,23 @@ pub(crate) fn screen_thread_main(
             },
             ScreenInstruction::DeletePaneMetadata(pane_id, key) => {
                 let all_tabs = screen.get_tabs_mut();
+                let mut metadata = None;
                 for tab in all_tabs.values_mut() {
                     if tab.has_pane_with_pid(&pane_id) {
                         tab.delete_pane_metadata(pane_id, &key);
+                        metadata = tab.get_all_pane_metadata(pane_id);
                         break;
                     }
+                }
+                if let Some(metadata) = metadata {
+                    screen.bus
+                        .senders
+                        .send_to_plugin(PluginInstruction::Update(vec![(
+                            None,
+                            None,
+                            Event::PaneMetadataUpdate(pane_id.into(), metadata),
+                        )]))
+                        .context("failed to send PaneMetadataUpdate")?;
                 }
                 screen.render(None)?;
             },
