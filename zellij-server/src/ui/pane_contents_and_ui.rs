@@ -1,4 +1,5 @@
 use crate::output::Output;
+use crate::panes::terminal_character::AnsiCode;
 use crate::panes::PaneId;
 use crate::tab::Pane;
 use crate::ui::boundaries::Boundaries;
@@ -7,6 +8,13 @@ use crate::ClientId;
 use std::collections::{HashMap, HashSet};
 use zellij_utils::data::{client_id_to_colors, InputMode, PaletteColor, Style};
 use zellij_utils::errors::prelude::*;
+
+fn palette_color_to_ansi(color: PaletteColor) -> AnsiCode {
+    match color {
+        PaletteColor::Rgb((r, g, b)) => AnsiCode::RgbCode((r, g, b)),
+        PaletteColor::EightBit(idx) => AnsiCode::ColorIndex(idx),
+    }
+}
 pub struct PaneContentsAndUi<'a> {
     pane: &'a mut Box<dyn Pane>,
     output: &'a mut Output,
@@ -82,13 +90,22 @@ impl<'a> PaneContentsAndUi<'a> {
             self.pane.render(None).context(err_context)?
         {
             let clients: Vec<ClientId> = clients.collect();
-            self.output
-                .add_character_chunks_to_multiple_clients(
-                    character_chunks,
-                    clients.iter().copied(),
-                    self.z_index,
-                )
-                .context(err_context)?;
+            let theme_bg = palette_color_to_ansi(self.style.colors.text_unselected.background);
+            for client_id in &clients {
+                let pane_is_active = self.focused_clients.contains(client_id);
+                let mut client_chunks = character_chunks.clone();
+                if !pane_is_active {
+                    for chunk in &mut client_chunks {
+                        chunk.is_inactive = true;
+                        if chunk.pane_default_bg.is_none() {
+                            chunk.pane_default_bg = Some(theme_bg);
+                        }
+                    }
+                }
+                self.output
+                    .add_character_chunks_to_client(*client_id, client_chunks, self.z_index)
+                    .context(err_context)?;
+            }
             self.output.add_sixel_image_chunks_to_multiple_clients(
                 sixel_image_chunks,
                 clients.iter().copied(),
@@ -113,11 +130,22 @@ impl<'a> PaneContentsAndUi<'a> {
     pub fn render_pane_contents_for_client(&mut self, client_id: ClientId) -> Result<()> {
         let err_context = || format!("failed to render pane contents for client {client_id}");
 
-        if let Some((character_chunks, raw_vte_output, sixel_image_chunks)) = self
+        if let Some((mut character_chunks, raw_vte_output, sixel_image_chunks)) = self
             .pane
             .render(Some(client_id))
             .with_context(err_context)?
         {
+            let pane_is_active = self.focused_clients.contains(&client_id);
+            if !pane_is_active {
+                let theme_bg =
+                    palette_color_to_ansi(self.style.colors.text_unselected.background);
+                for chunk in &mut character_chunks {
+                    chunk.is_inactive = true;
+                    if chunk.pane_default_bg.is_none() {
+                        chunk.pane_default_bg = Some(theme_bg);
+                    }
+                }
+            }
             self.output
                 .add_character_chunks_to_client(client_id, character_chunks, self.z_index)
                 .with_context(err_context)?;

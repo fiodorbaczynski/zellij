@@ -104,6 +104,29 @@ fn adjust_styles_for_custom_bg_fg(
     character_styles
 }
 
+const INACTIVE_PANE_DIM_FACTOR: f32 = 0.80;
+
+fn dim_ansi_color(color: AnsiCode) -> AnsiCode {
+    match color {
+        AnsiCode::RgbCode((r, g, b)) => AnsiCode::RgbCode((
+            (r as f32 * INACTIVE_PANE_DIM_FACTOR) as u8,
+            (g as f32 * INACTIVE_PANE_DIM_FACTOR) as u8,
+            (b as f32 * INACTIVE_PANE_DIM_FACTOR) as u8,
+        )),
+        other => other,
+    }
+}
+
+fn dim_styles_for_inactive_pane(mut styles: CharacterStyles) -> CharacterStyles {
+    if let Some(fg) = styles.foreground {
+        styles.foreground = Some(dim_ansi_color(fg));
+    }
+    if let Some(bg) = styles.background {
+        styles.background = Some(dim_ansi_color(bg));
+    }
+    styles
+}
+
 fn write_changed_styles(
     character_styles: &mut CharacterStyles,
     current_character_styles: CharacterStyles,
@@ -179,6 +202,11 @@ fn serialize_chunks_with_newlines(
                 pane_default_fg,
                 pane_default_bg,
             );
+            let current_character_styles = if character_chunk.is_inactive {
+                dim_styles_for_inactive_pane(current_character_styles)
+            } else {
+                current_character_styles
+            };
             write_changed_styles(
                 &mut character_styles,
                 current_character_styles,
@@ -244,6 +272,11 @@ fn serialize_chunks(
                 pane_default_fg,
                 pane_default_bg,
             );
+            let current_character_styles = if character_chunk.is_inactive {
+                dim_styles_for_inactive_pane(current_character_styles)
+            } else {
+                current_character_styles
+            };
             write_changed_styles(
                 &mut character_styles,
                 current_character_styles,
@@ -1019,6 +1052,7 @@ pub struct CharacterChunk {
     pub changed_colors: Option<[Option<AnsiCode>; 256]>,
     pub pane_default_fg: Option<AnsiCode>,
     pub pane_default_bg: Option<AnsiCode>,
+    pub is_inactive: bool,
     selection_and_colors: Vec<HighlightSelection>,
 }
 
