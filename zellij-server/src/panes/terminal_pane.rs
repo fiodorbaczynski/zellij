@@ -1248,13 +1248,19 @@ impl TerminalPane {
             }
         }
         if raw_input_bytes_are_kitty {
-            // here what happens is that the host terminal is operating in "kitty keys" mode, but
-            // this terminal pane is not - so we need to serialize the kitty key to "non kitty" if
-            // possible - if not possible (eg. with multiple modifiers), we'll return a None here
-            // and write nothing to the terminal pane
-            key.as_ref()
-                .and_then(|k| k.serialize_non_kitty())
-                .map(|s| AdjustedInput::WriteBytesToTerminal(s.as_bytes().to_vec()))
+            // the host terminal sent kitty-encoded input but this pane hasn't enabled the kitty
+            // protocol - try to downconvert, but if the key has modifiers that legacy encoding
+            // can't represent (e.g. Shift+Enter), pass the raw kitty bytes through rather than
+            // silently losing modifier information
+            let has_modifiers = key.as_ref().map_or(false, |k| !k.has_no_modifiers());
+            if has_modifiers {
+                Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes))
+            } else {
+                key.as_ref()
+                    .and_then(|k| k.serialize_non_kitty())
+                    .map(|s| AdjustedInput::WriteBytesToTerminal(s.as_bytes().to_vec()))
+                    .or(Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes)))
+            }
         } else {
             Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes))
         }

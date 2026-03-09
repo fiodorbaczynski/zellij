@@ -1498,7 +1498,9 @@ impl Grid {
             log::warn!("Tried to clear pane with alternate_screen_state");
             return;
         }
+        let kitty = self.supports_kitty_keyboard_protocol;
         self.reset_terminal_state();
+        self.supports_kitty_keyboard_protocol = kitty;
         self.mark_for_rerender();
     }
     /// Dumps all lines above terminal vieport and the viewport itself to a string
