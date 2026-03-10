@@ -433,7 +433,16 @@ pub(crate) fn send_action_to_session(
                     std::process::exit(1);
                 }
             } else if let Ok(session_name) = envs::get_session_name() {
-                attach_with_cli_client(cli_action, &session_name, config);
+                if existing_sessions.contains(&session_name) {
+                    attach_with_cli_client(cli_action, &session_name, config);
+                } else {
+                    eprintln!(
+                        "Session '{}' (from $ZELLIJ_SESSION_NAME) not found. It may have been renamed. The following sessions are active:",
+                        session_name
+                    );
+                    list_sessions(false, false, true);
+                    std::process::exit(1);
+                }
             } else {
                 eprintln!("Please specify the session name to send actions to. The following sessions are active:");
                 list_sessions(false, false, true);
