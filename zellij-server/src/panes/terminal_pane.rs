@@ -1249,18 +1249,12 @@ impl TerminalPane {
         }
         if raw_input_bytes_are_kitty {
             // the host terminal sent kitty-encoded input but this pane hasn't enabled the kitty
-            // protocol - try to downconvert, but if the key has modifiers that legacy encoding
-            // can't represent (e.g. Shift+Enter), pass the raw kitty bytes through rather than
-            // silently losing modifier information
-            let has_modifiers = key.as_ref().map_or(false, |k| !k.has_no_modifiers());
-            if has_modifiers {
-                Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes))
-            } else {
-                key.as_ref()
-                    .and_then(|k| k.serialize_non_kitty())
-                    .map(|s| AdjustedInput::WriteBytesToTerminal(s.as_bytes().to_vec()))
-                    .or(Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes)))
-            }
+            // protocol - downconvert to legacy encoding (e.g. Ctrl+C → 0x03) so that control
+            // characters reach child processes as raw bytes for signal generation (SIGINT etc.)
+            key.as_ref()
+                .and_then(|k| k.serialize_non_kitty())
+                .map(|s| AdjustedInput::WriteBytesToTerminal(s.as_bytes().to_vec()))
+                .or_else(|| Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes)))
         } else {
             Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes))
         }
