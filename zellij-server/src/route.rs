@@ -3186,4 +3186,86 @@ mod tests {
         // But channel should be None (as per the Clone implementation comment)
         assert!(cloned.channel.is_none());
     }
+
+    #[test]
+    fn keybind_pipe_without_name_signals_completion() {
+        let senders = ThreadSenders {
+            should_silently_fail: true,
+            ..Default::default()
+        };
+        let action = Action::KeybindPipe {
+            name: None,
+            payload: None,
+            args: None,
+            plugin: None,
+            plugin_id: None,
+            configuration: None,
+            launch_new: false,
+            skip_cache: false,
+            floating: None,
+            in_place: None,
+            cwd: None,
+            pane_title: None,
+        };
+        let result = route_action(
+            action,
+            1,
+            None,
+            None,
+            senders,
+            PluginCapabilities::default(),
+            ClientAttributes::default(),
+            None,
+            Box::new(Layout::default()),
+            None,
+            Keybinds::default(),
+            InputMode::Normal,
+            None,
+        );
+        assert!(result.is_ok());
+        let (should_break, completion) = result.unwrap();
+        assert!(!should_break);
+        assert!(completion.is_some());
+    }
+
+    #[test]
+    fn keybind_pipe_with_name_signals_completion() {
+        let senders = ThreadSenders {
+            should_silently_fail: true,
+            ..Default::default()
+        };
+        let action = Action::KeybindPipe {
+            name: Some("test-pipe".to_string()),
+            payload: Some("test-payload".to_string()),
+            args: None,
+            plugin: None,
+            plugin_id: None,
+            configuration: None,
+            launch_new: false,
+            skip_cache: false,
+            floating: None,
+            in_place: None,
+            cwd: None,
+            pane_title: None,
+        };
+        let result = route_action(
+            action,
+            1,
+            None,
+            None,
+            senders,
+            PluginCapabilities::default(),
+            ClientAttributes::default(),
+            None,
+            Box::new(Layout::default()),
+            None,
+            Keybinds::default(),
+            InputMode::Normal,
+            None,
+        );
+        assert!(result.is_ok());
+        let (should_break, completion) = result.unwrap();
+        assert!(!should_break);
+        assert!(completion.is_some());
+    }
 }
