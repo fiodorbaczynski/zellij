@@ -1130,21 +1130,20 @@ impl InputParser {
             (";6", Modifiers::CTRL | Modifiers::SHIFT),
             (";7", Modifiers::CTRL | Modifiers::ALT),
             (";8", Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT),
-        ];
-        let meta = Modifiers::ALT;
-        let meta_modifier_combos = &[
-            (";9", meta),
-            (";10", meta | Modifiers::SHIFT),
-            (";11", meta | Modifiers::ALT),
-            (";12", meta | Modifiers::ALT | Modifiers::SHIFT),
-            (";13", meta | Modifiers::CTRL),
-            (";14", meta | Modifiers::CTRL | Modifiers::SHIFT),
-            (";15", meta | Modifiers::CTRL | Modifiers::ALT),
+            // Kitty keyboard protocol: Super modifier (bit 3 = 8)
+            (";9", Modifiers::SUPER),
+            (";10", Modifiers::SUPER | Modifiers::SHIFT),
+            (";11", Modifiers::SUPER | Modifiers::ALT),
+            (";12", Modifiers::SUPER | Modifiers::ALT | Modifiers::SHIFT),
+            (";13", Modifiers::SUPER | Modifiers::CTRL),
+            (";14", Modifiers::SUPER | Modifiers::CTRL | Modifiers::SHIFT),
+            (";15", Modifiers::SUPER | Modifiers::CTRL | Modifiers::ALT),
             (
                 ";16",
-                meta | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT,
+                Modifiers::SUPER | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT,
             ),
         ];
+        let meta_modifier_combos: &[(&str, Modifiers)] = &[];
 
         let modifier_combos_including_meta =
             || modifier_combos.iter().chain(meta_modifier_combos.iter());
