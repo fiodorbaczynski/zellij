@@ -1179,7 +1179,13 @@ impl InputParser {
                 map.insert(
                     key,
                     InputEvent::Key(KeyEvent {
-                        key: KeyCode::Char(c as char),
+                        key: match c {
+                            0x1b => KeyCode::Escape,
+                            8 | 0x7f => KeyCode::Backspace,
+                            9 => KeyCode::Tab,
+                            10 | 13 => KeyCode::Enter,
+                            _ => KeyCode::Char(c as char),
+                        },
                         modifiers: *modifiers,
                     }),
                 );
