@@ -63,6 +63,12 @@ const fn system_default_data_dir() -> &'static str {
     }
 }
 
+fn resolve_cache_dir(xdg_cache_home: Option<std::ffi::OsString>) -> PathBuf {
+    xdg_cache_home
+        .map(|v| PathBuf::from(v).join("zellij"))
+        .unwrap_or_else(|| ZELLIJ_PROJ_DIR.cache_dir().to_path_buf())
+}
+
 lazy_static! {
     pub static ref CLIENT_SERVER_CONTRACT_DIR: String =
         format!("contract_version_{}", CLIENT_SERVER_CONTRACT_VERSION);
@@ -73,7 +79,7 @@ lazy_static! {
             ProjectDirs::from("org", "Zellij Contributors", "Zellij").unwrap()
         }
     };
-    pub static ref ZELLIJ_CACHE_DIR: PathBuf = ZELLIJ_PROJ_DIR.cache_dir().to_path_buf();
+    pub static ref ZELLIJ_CACHE_DIR: PathBuf = resolve_cache_dir(std::env::var_os("XDG_CACHE_HOME"));
     pub static ref ZELLIJ_SESSION_CACHE_DIR: PathBuf = ZELLIJ_PROJ_DIR
         .cache_dir()
         .to_path_buf()
@@ -353,5 +359,43 @@ mod not_unix {
             ipc_dir
         };
         pub static ref WEBSERVER_SOCKET_PATH: PathBuf = ZELLIJ_SOCK_DIR.join("web_server_bus");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_cache_dir_uses_xdg_cache_home() {
+        let result = resolve_cache_dir(Some("/custom/cache".into()));
+        assert_eq!(result, PathBuf::from("/custom/cache/zellij"));
+    }
+
+    #[test]
+    fn resolve_cache_dir_falls_back_to_project_dirs() {
+        let result = resolve_cache_dir(None);
+        assert_eq!(result, ZELLIJ_PROJ_DIR.cache_dir().to_path_buf());
+    }
+
+    #[test]
+    fn resolve_cache_dir_appends_zellij_subdir() {
+        let result = resolve_cache_dir(Some("/some/path".into()));
+        assert_eq!(result.file_name().unwrap(), "zellij");
+        assert_eq!(result.parent().unwrap(), PathBuf::from("/some/path"));
+    }
+
+    #[test]
+    fn plugin_permissions_cache_is_under_cache_dir() {
+        assert!(ZELLIJ_PLUGIN_PERMISSIONS_CACHE.starts_with(&*ZELLIJ_CACHE_DIR));
+        assert_eq!(
+            ZELLIJ_PLUGIN_PERMISSIONS_CACHE.file_name().unwrap(),
+            "permissions.kdl"
+        );
+    }
+
+    #[test]
+    fn session_info_cache_dir_is_under_cache_dir() {
+        assert!(ZELLIJ_SESSION_INFO_CACHE_DIR.starts_with(&*ZELLIJ_CACHE_DIR));
     }
 }
