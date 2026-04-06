@@ -73,7 +73,9 @@ lazy_static! {
             ProjectDirs::from("org", "Zellij Contributors", "Zellij").unwrap()
         }
     };
-    pub static ref ZELLIJ_CACHE_DIR: PathBuf = ZELLIJ_PROJ_DIR.cache_dir().to_path_buf();
+    pub static ref ZELLIJ_CACHE_DIR: PathBuf = std::env::var_os("XDG_CACHE_HOME")
+        .map(|v| PathBuf::from(v).join("zellij"))
+        .unwrap_or_else(|| ZELLIJ_PROJ_DIR.cache_dir().to_path_buf());
     pub static ref ZELLIJ_SESSION_CACHE_DIR: PathBuf = ZELLIJ_PROJ_DIR
         .cache_dir()
         .to_path_buf()
