@@ -1645,6 +1645,7 @@ pub(crate) fn route_action(
                     .with_context(err_context)?;
             } else {
                 log::error!("Message must have a name");
+                drop(NotificationEnd::new(completion_tx));
             }
         },
         Action::ListClients => {
