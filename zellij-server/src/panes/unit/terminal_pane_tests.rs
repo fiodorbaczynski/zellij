@@ -969,7 +969,7 @@ fn non_kitty_input_passed_through_unchanged() {
 #[test]
 fn kitty_input_passed_through_when_pane_supports_kitty() {
     let mut terminal_pane = new_terminal_pane();
-    terminal_pane.grid.supports_kitty_keyboard_protocol = true;
+    terminal_pane.handle_pty_bytes(b"\x1b[>1u".to_vec());
     let key = Some(KeyWithModifier::new(BareKey::Char('c')).with_ctrl_modifier());
     let kitty_raw_bytes = b"\x1b[99;5u".to_vec();
 
