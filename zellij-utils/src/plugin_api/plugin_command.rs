@@ -6,8 +6,8 @@ pub use super::generated_api::api::{
         break_panes_to_new_tab_response, break_panes_to_tab_with_id_response,
         break_panes_to_tab_with_index_response, delete_layout_response, dump_layout_response,
         dump_session_layout_response, edit_layout_response, focus_or_create_tab_response,
-        get_focused_pane_info_response, get_pane_cwd_response, get_pane_pid_response,
-        get_pane_running_command_response, hide_floating_panes_response,
+        get_focused_pane_info_response, get_pane_cwd_response, get_pane_metadata_response,
+        get_pane_pid_response, get_pane_running_command_response, hide_floating_panes_response,
         highlight_style::Style as ProtobufHighlightStyleVariant, new_tab_response,
         parse_layout_response, plugin_command::Payload, rename_layout_response,
         save_layout_response, save_session_response, show_floating_panes_response,
@@ -41,7 +41,9 @@ pub use super::generated_api::api::{
         GetLayoutDirResponse as ProtobufGetLayoutDirResponse,
         GetPaneCwdPayload as ProtobufGetPaneCwdPayload,
         GetPaneCwdResponse as ProtobufGetPaneCwdResponse, GetPaneInfoPayload,
-        GetPaneInfoResponse as ProtobufGetPaneInfoResponse, GetPanePidPayload,
+        GetPaneInfoResponse as ProtobufGetPaneInfoResponse,
+        GetPaneMetadataPayload, GetPaneMetadataResponse as ProtobufGetPaneMetadataResponse,
+        GetPanePidPayload,
         GetPanePidResponse as ProtobufGetPanePidResponse,
         GetPaneRunningCommandPayload as ProtobufGetPaneRunningCommandPayload,
         GetPaneRunningCommandResponse as ProtobufGetPaneRunningCommandResponse,
@@ -109,6 +111,7 @@ pub use super::generated_api::api::{
         SaveSessionResponse as ProtobufSaveSessionResponse, ScrollDownInPaneIdPayload,
         ScrollToBottomInPaneIdPayload, ScrollToTopInPaneIdPayload, ScrollUpInPaneIdPayload,
         SetFloatingPanePinnedPayload, SetPaneBorderlessPayload, SetPaneColorPayload,
+        SetPaneMetadataPayload, DeletePaneMetadataPayload,
         SetPaneRegexHighlightsPayload, SetSelfMouseSelectionSupportPayload, SetTimeoutPayload,
         ShowCursorPayload, ShowFloatingPanesPayload as ProtobufShowFloatingPanesPayload,
         ShowFloatingPanesResponse as ProtobufShowFloatingPanesResponse, ShowPaneWithIdPayload,
@@ -2569,6 +2572,36 @@ impl TryFrom<ProtobufPluginCommand> for PluginCommand {
                 },
                 _ => Err("Mismatched payload for OpenPluginPaneFloating"),
             },
+            Some(CommandName::SetPaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::SetPaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in SetPaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::SetPaneMetadata(pane_id, p.key, p.value))
+                },
+                _ => Err("Mismatched payload for SetPaneMetadata"),
+            },
+            Some(CommandName::GetPaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::GetPaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in GetPaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::GetPaneMetadata(pane_id, p.key))
+                },
+                _ => Err("Mismatched payload for GetPaneMetadata"),
+            },
+            Some(CommandName::DeletePaneMetadata) => match protobuf_plugin_command.payload {
+                Some(Payload::DeletePaneMetadataPayload(p)) => {
+                    let pane_id: PaneId = p
+                        .pane_id
+                        .ok_or("Missing pane_id in DeletePaneMetadata")?
+                        .try_into()?;
+                    Ok(PluginCommand::DeletePaneMetadata(pane_id, p.key))
+                },
+                _ => Err("Mismatched payload for DeletePaneMetadata"),
+            },
             None => Err("Unrecognized plugin command"),
         }
     }
@@ -4256,6 +4289,30 @@ impl TryFrom<PluginCommand> for ProtobufPluginCommand {
                     )),
                 })
             },
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => Ok(ProtobufPluginCommand {
+                name: CommandName::SetPaneMetadata as i32,
+                payload: Some(Payload::SetPaneMetadataPayload(SetPaneMetadataPayload {
+                    pane_id: pane_id.try_into().ok(),
+                    key,
+                    value,
+                })),
+            }),
+            PluginCommand::GetPaneMetadata(pane_id, key) => Ok(ProtobufPluginCommand {
+                name: CommandName::GetPaneMetadata as i32,
+                payload: Some(Payload::GetPaneMetadataPayload(GetPaneMetadataPayload {
+                    pane_id: pane_id.try_into().ok(),
+                    key,
+                })),
+            }),
+            PluginCommand::DeletePaneMetadata(pane_id, key) => Ok(ProtobufPluginCommand {
+                name: CommandName::DeletePaneMetadata as i32,
+                payload: Some(Payload::DeletePaneMetadataPayload(
+                    DeletePaneMetadataPayload {
+                        pane_id: pane_id.try_into().ok(),
+                        key,
+                    },
+                )),
+            }),
         }
     }
 }
@@ -4880,6 +4937,98 @@ impl From<OpenPluginPaneFloatingResponse> for ProtobufOpenPluginPaneFloatingResp
     fn from(response: OpenPluginPaneFloatingResponse) -> Self {
         ProtobufOpenPluginPaneFloatingResponse {
             pane_id: response.map(|p| p.try_into().unwrap()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    fn plugin_command_roundtrip(cmd: PluginCommand) -> PluginCommand {
+        let proto: ProtobufPluginCommand = cmd.try_into().unwrap();
+        let bytes = proto.encode_to_vec();
+        let decoded: ProtobufPluginCommand = Message::decode(bytes.as_slice()).unwrap();
+        decoded.try_into().unwrap()
+    }
+
+    #[test]
+    fn set_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::SetPaneMetadata(
+            PaneId::Terminal(1),
+            "nix_shell".to_owned(),
+            "devShell".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => {
+                assert_eq!(pane_id, PaneId::Terminal(1));
+                assert_eq!(key, "nix_shell");
+                assert_eq!(value, "devShell");
+            },
+            other => panic!("Expected SetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn set_pane_metadata_plugin_pane_roundtrip() {
+        let cmd = PluginCommand::SetPaneMetadata(
+            PaneId::Plugin(3),
+            "is_helix".to_owned(),
+            "true".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => {
+                assert_eq!(pane_id, PaneId::Plugin(3));
+                assert_eq!(key, "is_helix");
+                assert_eq!(value, "true");
+            },
+            other => panic!("Expected SetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn get_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::GetPaneMetadata(
+            PaneId::Terminal(5),
+            "nix_shell".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::GetPaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Terminal(5));
+                assert_eq!(key, "nix_shell");
+            },
+            other => panic!("Expected GetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn delete_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::DeletePaneMetadata(
+            PaneId::Terminal(2),
+            "old_key".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::DeletePaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Terminal(2));
+                assert_eq!(key, "old_key");
+            },
+            other => panic!("Expected DeletePaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn delete_pane_metadata_plugin_pane_roundtrip() {
+        let cmd = PluginCommand::DeletePaneMetadata(
+            PaneId::Plugin(10),
+            "is_helix".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::DeletePaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Plugin(10));
+                assert_eq!(key, "is_helix");
+            },
+            other => panic!("Expected DeletePaneMetadata, got {:?}", other),
         }
     }
 }

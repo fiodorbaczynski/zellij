@@ -67,6 +67,7 @@ enum EventType {
     HighlightClicked = 42;
     PaneRenderReportWithAnsi = 43;
     InitialKeybinds = 44;
+    PaneMetadataUpdate = 45;
 }
 
 message EventNameList {
@@ -113,6 +114,7 @@ message Event {
     HighlightClickedPayload highlight_clicked_payload = 36;
     PaneRenderReportPayload pane_render_report_with_ansi_payload = 37;
     InitialKeybindsPayload initial_keybinds_payload = 38;
+    PaneMetadataUpdatePayload pane_metadata_update_payload = 39;
   }
 }
 
@@ -415,6 +417,7 @@ message PaneInfo {
     repeated IndexInPaneGroup index_in_pane_group = 23;
     optional string default_fg = 24;
     optional string default_bg = 25;
+    map<string, string> metadata = 26;
 }
 
 message IndexInPaneGroup {
@@ -532,5 +535,10 @@ message HighlightClickedPayload {
 
 message InitialKeybindsPayload {
   repeated InputModeKeybinds keybinds = 1;
+}
+
+message PaneMetadataUpdatePayload {
+  PaneId pane_id = 1;
+  map<string, string> metadata = 2;
 }
 

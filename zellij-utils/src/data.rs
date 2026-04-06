@@ -1024,6 +1024,7 @@ pub enum Event {
     /// Plugins that subscribe to this event signal they cache keybindings
     /// and can handle lightweight ModeUpdate events without keybindings.
     InitialKeybinds(KeybindsVec),
+    PaneMetadataUpdate(PaneId, BTreeMap<String, String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumDiscriminants, Display, Serialize, Deserialize)]
@@ -2334,6 +2335,8 @@ pub struct PaneInfo {
     pub default_fg: Option<String>,
     /// The default background color of this pane, if set (e.g. "#001a3a")
     pub default_bg: Option<String>,
+    /// Arbitrary key-value metadata set on this pane (e.g. by shell integration via `zellij pipe`)
+    pub metadata: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -3566,6 +3569,9 @@ pub enum PluginCommand {
         context: BTreeMap<String, String>,
     },
     ListWindowsVolumes,
+    SetPaneMetadata(PaneId, String, String),    // (pane_id, key, value)
+    GetPaneMetadata(PaneId, String),            // (pane_id, key) -> Option<String>
+    DeletePaneMetadata(PaneId, String),         // (pane_id, key)
 }
 
 // Response type for plugin API methods that open a pane in a new tab
