@@ -109,6 +109,9 @@ mod not_wasm {
         if termwiz_modifiers.contains(Modifiers::SHIFT) {
             modifiers.insert(KeyModifier::Shift);
         }
+        if termwiz_modifiers.contains(Modifiers::SUPER) {
+            modifiers.insert(KeyModifier::Super);
+        }
 
         match event.key {
             KeyCode::Char(c) => {
