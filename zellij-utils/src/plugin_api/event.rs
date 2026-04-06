@@ -3064,3 +3064,50 @@ fn serialize_pane_render_report_with_ansi_event_with_data() {
         "PaneRenderReportWithAnsi event with ANSI data properly serialized/deserialized"
     );
 }
+
+#[test]
+fn serialize_pane_metadata_update_event_empty() {
+    use prost::Message;
+    let event = Event::PaneMetadataUpdate(PaneId::Terminal(1), BTreeMap::new());
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate with empty metadata roundtrips correctly"
+    );
+}
+
+#[test]
+fn serialize_pane_metadata_update_event_with_data() {
+    use prost::Message;
+    let mut metadata = BTreeMap::new();
+    metadata.insert("nix_shell".to_owned(), "devShell".to_owned());
+    metadata.insert("is_helix".to_owned(), "true".to_owned());
+    let event = Event::PaneMetadataUpdate(PaneId::Terminal(42), metadata);
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate with multiple keys roundtrips correctly"
+    );
+}
+
+#[test]
+fn serialize_pane_metadata_update_event_plugin_pane() {
+    use prost::Message;
+    let mut metadata = BTreeMap::new();
+    metadata.insert("role".to_owned(), "status-bar".to_owned());
+    let event = Event::PaneMetadataUpdate(PaneId::Plugin(7), metadata);
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate for plugin pane roundtrips correctly"
+    );
+}
