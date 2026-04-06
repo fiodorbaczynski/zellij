@@ -4,4 +4,5 @@ target/
 .vim
 .idea
 .DS_Store
+.direnv/
 /assets/man/zellij.1
