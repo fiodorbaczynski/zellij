@@ -614,7 +614,7 @@ pub struct Grid {
     arrow_fonts: bool,
     styled_underlines: bool,
     osc8_hyperlinks: bool,
-    pub supports_kitty_keyboard_protocol: bool, // has the app requested kitty keyboard support?
+    kitty_keyboard_protocol_stack: Vec<bool>, // push/pop stack per kitty spec; true = enabled
     explicitly_disable_kitty_keyboard_protocol: bool, // has kitty keyboard support been explicitly
     // disabled by user config?
     click: Click,
@@ -900,7 +900,7 @@ impl Grid {
             styled_underlines,
             osc8_hyperlinks,
             lock_renders: false,
-            supports_kitty_keyboard_protocol: false,
+            kitty_keyboard_protocol_stack: Vec::new(),
             explicitly_disable_kitty_keyboard_protocol,
             click: Click::default(),
             hyperlink_tracker: HyperlinkTracker::new(),
@@ -1594,7 +1594,9 @@ impl Grid {
             log::warn!("Tried to clear pane with alternate_screen_state");
             return;
         }
+        let kitty_stack = std::mem::take(&mut self.kitty_keyboard_protocol_stack);
         self.reset_terminal_state();
+        self.kitty_keyboard_protocol_stack = kitty_stack;
         self.mark_for_rerender();
     }
     /// Dumps all lines above terminal vieport and the viewport itself to a string
@@ -2190,7 +2192,7 @@ impl Grid {
         self.mouse_tracking = MouseTracking::Off;
         self.focus_event_tracking = false;
         self.cursor_is_hidden = false;
-        self.supports_kitty_keyboard_protocol = false;
+        self.kitty_keyboard_protocol_stack.clear();
         self.set_scroll_region_to_viewport_size();
         self.pane_default_fg = None;
         self.pane_default_bg = None;
@@ -3167,6 +3169,9 @@ impl Grid {
     pub fn is_alternate_mode_active(&self) -> bool {
         self.alternate_screen_state.is_some()
     }
+    pub fn supports_kitty_keyboard_protocol(&self) -> bool {
+        self.kitty_keyboard_protocol_stack.last().copied().unwrap_or(false)
+    }
     pub fn focus_event(&self) -> Option<String> {
         if self.focus_event_tracking {
             Some("\u{1b}[I".into())
@@ -3741,7 +3746,6 @@ impl Perform for Grid {
                                     &mut self.viewport,
                                     &mut self.cursor,
                                     &mut self.sixel_grid,
-                                    &mut self.supports_kitty_keyboard_protocol,
                                 );
                             }
                             self.alternate_screen_state = None;
@@ -3837,10 +3841,6 @@ impl Perform for Grid {
                                 &mut self.cursor,
                                 Cursor::new(0, 0, self.styled_underlines),
                             );
-                            let current_supports_kitty_keyboard_protocol = std::mem::replace(
-                                &mut self.supports_kitty_keyboard_protocol,
-                                false,
-                            );
                             let sixel_image_store = self.sixel_grid.sixel_image_store.clone();
                             let alternate_sixelgrid = std::mem::replace(
                                 &mut self.sixel_grid,
@@ -3851,7 +3851,6 @@ impl Perform for Grid {
                                 current_viewport,
                                 current_cursor,
                                 alternate_sixelgrid,
-                                current_supports_kitty_keyboard_protocol,
                             ));
                             self.clear_viewport_before_rendering = true;
                             self.scrollback_buffer_lines =
@@ -4036,41 +4035,32 @@ impl Perform for Grid {
         } else if c == 's' {
             self.save_cursor_position();
         } else if c == 'u' && intermediates == &[b'>'] {
-            // Zellij only supports the first "progressive enhancement" layer of the kitty keyboard
-            // protocol
-            // 0 disables, everything else enables.
+            // kitty keyboard protocol: push onto stack
             let count = next_param_or(0);
             if !self.explicitly_disable_kitty_keyboard_protocol {
-                if count > 0 {
-                    self.supports_kitty_keyboard_protocol = true;
-                } else {
-                    self.supports_kitty_keyboard_protocol = false;
-                }
+                self.kitty_keyboard_protocol_stack.push(count > 0);
             }
         } else if c == 'u' && intermediates == &[b'<'] {
-            // Zellij only supports the first "progressive enhancement" layer of the kitty keyboard
-            // protocol
+            // kitty keyboard protocol: pop from stack
             if !self.explicitly_disable_kitty_keyboard_protocol {
-                self.supports_kitty_keyboard_protocol = false;
+                self.kitty_keyboard_protocol_stack.pop();
             }
         } else if c == 'u' && intermediates == &[b'?'] {
-            // Zellij only supports the first "progressive enhancement" layer of the kitty keyboard
-            // protocol
-            let reply = if self.supports_kitty_keyboard_protocol {
+            // kitty keyboard protocol: query current flags
+            let reply = if self.supports_kitty_keyboard_protocol() {
                 "\u{1b}[?1u"
             } else {
                 "\u{1b}[?0u"
             };
             self.pending_messages_to_pty.push(reply.as_bytes().to_vec());
         } else if c == 'u' && intermediates == &[b'='] {
-            // kitty keyboard protocol without the stack, just setting.
-            // 0 disables, everything else enables.
+            // kitty keyboard protocol: set without push (replace top of stack)
             let count = next_param_or(0);
             if !self.explicitly_disable_kitty_keyboard_protocol {
-                if count > 0 {
-                    self.supports_kitty_keyboard_protocol = true;
+                if let Some(top) = self.kitty_keyboard_protocol_stack.last_mut() {
+                    *top = count > 0;
                 } else {
-                    self.supports_kitty_keyboard_protocol = false;
+                    self.kitty_keyboard_protocol_stack.push(count > 0);
                 }
             }
         } else if c == 'u' {
@@ -4329,7 +4319,6 @@ pub struct AlternateScreenState {
     viewport: VecDeque<Row>,
     cursor: Cursor,
     sixel_grid: SixelGrid,
-    supports_kitty_keyboard_protocol: bool,
 }
 impl AlternateScreenState {
     pub fn new(
@@ -4337,14 +4326,12 @@ impl AlternateScreenState {
         viewport: VecDeque<Row>,
         cursor: Cursor,
         sixel_grid: SixelGrid,
-        supports_kitty_keyboard_protocol: bool,
     ) -> Self {
         AlternateScreenState {
             lines_above,
             viewport,
             cursor,
             sixel_grid,
-            supports_kitty_keyboard_protocol,
         }
     }
     pub fn apply_contents_to(
@@ -4353,16 +4340,11 @@ impl AlternateScreenState {
         viewport: &mut VecDeque<Row>,
         cursor: &mut Cursor,
         sixel_grid: &mut SixelGrid,
-        supports_kitty_keyboard_protocol: &mut bool,
     ) {
         std::mem::swap(&mut self.lines_above, lines_above);
         std::mem::swap(&mut self.viewport, viewport);
         std::mem::swap(&mut self.cursor, cursor);
         std::mem::swap(&mut self.sixel_grid, sixel_grid);
-        std::mem::swap(
-            &mut self.supports_kitty_keyboard_protocol,
-            supports_kitty_keyboard_protocol,
-        );
     }
 }
 
