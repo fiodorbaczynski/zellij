@@ -5690,3 +5690,120 @@ fn row_without_scroll_has_no_bg_color() {
         "rows not created by scroll should have no bg_color"
     );
 }
+
+#[test]
+fn kitty_keyboard_push_enables_protocol() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_push_zero_does_not_enable() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>0u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_pop_reverts_to_previous_state() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    feed_bytes(&mut grid, b"\x1b[>0u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_pop_on_empty_stack_is_noop() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_pop_last_entry_disables() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_nested_push_pop() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_query_reports_current_flags() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[?u");
+    assert_eq!(grid.pending_messages_to_pty.pop(), Some(b"\x1b[?0u".to_vec()));
+
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    feed_bytes(&mut grid, b"\x1b[?u");
+    assert_eq!(grid.pending_messages_to_pty.pop(), Some(b"\x1b[?1u".to_vec()));
+}
+
+#[test]
+fn kitty_keyboard_set_replaces_top_of_stack() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>0u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[=1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_set_on_empty_stack_pushes() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[=1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_stack_survives_alternate_screen() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[?1049h");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[?1049l");
+    assert!(grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_push_pop_across_alternate_screen() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    feed_bytes(&mut grid, b"\x1b[?1049h");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    feed_bytes(&mut grid, b"\x1b[<u");
+    feed_bytes(&mut grid, b"\x1b[?1049l");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    feed_bytes(&mut grid, b"\x1b[<u");
+    assert!(!grid.supports_kitty_keyboard_protocol());
+}
+
+#[test]
+fn kitty_keyboard_stack_survives_clear_screen() {
+    let mut grid = create_grid_with_size_and_raw(10, 40, b"");
+    feed_bytes(&mut grid, b"\x1b[>1u");
+    assert!(grid.supports_kitty_keyboard_protocol());
+    grid.clear_screen();
+    assert!(grid.supports_kitty_keyboard_protocol());
+}
