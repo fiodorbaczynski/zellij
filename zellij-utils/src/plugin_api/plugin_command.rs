@@ -4940,3 +4940,95 @@ impl From<OpenPluginPaneFloatingResponse> for ProtobufOpenPluginPaneFloatingResp
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    fn plugin_command_roundtrip(cmd: PluginCommand) -> PluginCommand {
+        let proto: ProtobufPluginCommand = cmd.try_into().unwrap();
+        let bytes = proto.encode_to_vec();
+        let decoded: ProtobufPluginCommand = Message::decode(bytes.as_slice()).unwrap();
+        decoded.try_into().unwrap()
+    }
+
+    #[test]
+    fn set_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::SetPaneMetadata(
+            PaneId::Terminal(1),
+            "nix_shell".to_owned(),
+            "devShell".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => {
+                assert_eq!(pane_id, PaneId::Terminal(1));
+                assert_eq!(key, "nix_shell");
+                assert_eq!(value, "devShell");
+            },
+            other => panic!("Expected SetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn set_pane_metadata_plugin_pane_roundtrip() {
+        let cmd = PluginCommand::SetPaneMetadata(
+            PaneId::Plugin(3),
+            "is_helix".to_owned(),
+            "true".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::SetPaneMetadata(pane_id, key, value) => {
+                assert_eq!(pane_id, PaneId::Plugin(3));
+                assert_eq!(key, "is_helix");
+                assert_eq!(value, "true");
+            },
+            other => panic!("Expected SetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn get_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::GetPaneMetadata(
+            PaneId::Terminal(5),
+            "nix_shell".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::GetPaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Terminal(5));
+                assert_eq!(key, "nix_shell");
+            },
+            other => panic!("Expected GetPaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn delete_pane_metadata_roundtrip() {
+        let cmd = PluginCommand::DeletePaneMetadata(
+            PaneId::Terminal(2),
+            "old_key".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::DeletePaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Terminal(2));
+                assert_eq!(key, "old_key");
+            },
+            other => panic!("Expected DeletePaneMetadata, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn delete_pane_metadata_plugin_pane_roundtrip() {
+        let cmd = PluginCommand::DeletePaneMetadata(
+            PaneId::Plugin(10),
+            "is_helix".to_owned(),
+        );
+        match plugin_command_roundtrip(cmd) {
+            PluginCommand::DeletePaneMetadata(pane_id, key) => {
+                assert_eq!(pane_id, PaneId::Plugin(10));
+                assert_eq!(key, "is_helix");
+            },
+            other => panic!("Expected DeletePaneMetadata, got {:?}", other),
+        }
+    }
+}
