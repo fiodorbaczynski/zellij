@@ -1238,13 +1238,14 @@ impl TerminalPane {
             }
         }
         if raw_input_bytes_are_kitty {
-            // here what happens is that the host terminal is operating in "kitty keys" mode, but
-            // this terminal pane is not - so we need to serialize the kitty key to "non kitty" if
-            // possible - if not possible (eg. with multiple modifiers), we'll return a None here
-            // and write nothing to the terminal pane
+            // the host terminal sent kitty-encoded input but this pane hasn't enabled the kitty
+            // protocol — downconvert to legacy encoding so control characters reach child
+            // processes as raw bytes for signal generation (Ctrl+C → 0x03 → SIGINT), falling
+            // back to raw kitty bytes for keys that can't be downconverted
             key.as_ref()
                 .and_then(|k| k.serialize_non_kitty())
                 .map(|s| AdjustedInput::WriteBytesToTerminal(s.as_bytes().to_vec()))
+                .or_else(|| Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes)))
         } else {
             Some(AdjustedInput::WriteBytesToTerminal(raw_input_bytes))
         }
