@@ -1178,7 +1178,13 @@ impl InputParser {
                 map.insert(
                     key,
                     InputEvent::Key(KeyEvent {
-                        key: KeyCode::Char(c as char),
+                        key: match c {
+                            0x1b => KeyCode::Escape,
+                            8 | 0x7f => KeyCode::Backspace,
+                            9 => KeyCode::Tab,
+                            10 | 13 => KeyCode::Enter,
+                            _ => KeyCode::Char(c as char),
+                        },
                         modifiers: *modifiers,
                     }),
                 );
@@ -2558,6 +2564,131 @@ mod test {
             vec![InputEvent::Key(KeyEvent {
                 modifiers: Modifiers::SUPER,
                 key: KeyCode::Function(1),
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_escape() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[27u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Escape,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_backspace_codepoint_8() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[8u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Backspace,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_backspace_codepoint_127() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[127u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Backspace,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_tab() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[9u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Tab,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_enter_codepoint_13() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[13u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Enter,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_enter_codepoint_10() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[10u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Enter,
+                modifiers: Modifiers::NONE,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_special_keys_with_modifiers() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(
+            b"\x1b[27;5u\x1b[9;5u\x1b[13;5u\x1b[127;2u\x1b[8;6u",
+            NO_MORE,
+        );
+        assert_eq!(
+            vec![
+                InputEvent::Key(KeyEvent {
+                    key: KeyCode::Escape,
+                    modifiers: Modifiers::CTRL,
+                }),
+                InputEvent::Key(KeyEvent {
+                    key: KeyCode::Tab,
+                    modifiers: Modifiers::CTRL,
+                }),
+                InputEvent::Key(KeyEvent {
+                    key: KeyCode::Enter,
+                    modifiers: Modifiers::CTRL,
+                }),
+                InputEvent::Key(KeyEvent {
+                    key: KeyCode::Backspace,
+                    modifiers: Modifiers::SHIFT,
+                }),
+                InputEvent::Key(KeyEvent {
+                    key: KeyCode::Backspace,
+                    modifiers: Modifiers::CTRL | Modifiers::SHIFT,
+                }),
+            ],
+            inputs
+        );
+    }
+
+    #[test]
+    fn csi_u_regular_char_unchanged() {
+        let mut p = InputParser::new();
+        let inputs = p.parse_as_vec(b"\x1b[97u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                key: KeyCode::Char('a'),
+                modifiers: Modifiers::NONE,
             })],
             inputs
         );
