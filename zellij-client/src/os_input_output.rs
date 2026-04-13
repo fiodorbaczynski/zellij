@@ -277,6 +277,8 @@ impl ClientOsApi for ClientOsInputOutput {
     }
     fn connect_to_server(&self, path: &Path) {
         let socket;
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(3);
         loop {
             match zellij_utils::consts::ipc_connect(path) {
                 Ok(sock) => {
@@ -284,6 +286,13 @@ impl ClientOsApi for ClientOsInputOutput {
                     break;
                 },
                 Err(_) => {
+                    if start.elapsed() > timeout {
+                        eprintln!(
+                            "Timed out connecting to server at '{}'",
+                            path.display()
+                        );
+                        std::process::exit(1);
+                    }
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 },
             }
