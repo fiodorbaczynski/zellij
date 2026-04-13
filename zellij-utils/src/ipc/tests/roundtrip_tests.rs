@@ -2966,6 +2966,44 @@ fn test_client_messages() {
         client_id: Some(100),
         is_cli_client: true,
     });
+    test_client_roundtrip!(ClientToServerMsg::Action {
+        action: Action::SetPaneMetadata {
+            pane_id: PaneId::Terminal(0),
+            key: "nix_shell".to_owned(),
+            value: "devShell".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    });
+    test_client_roundtrip!(ClientToServerMsg::Action {
+        action: Action::SetPaneMetadata {
+            pane_id: PaneId::Plugin(3),
+            key: "is_helix".to_owned(),
+            value: "true".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    });
+    test_client_roundtrip!(ClientToServerMsg::Action {
+        action: Action::DeletePaneMetadata {
+            pane_id: PaneId::Terminal(5),
+            key: "nix_shell".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    });
+    test_client_roundtrip!(ClientToServerMsg::Action {
+        action: Action::DeletePaneMetadata {
+            pane_id: PaneId::Plugin(2),
+            key: "is_helix".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    });
     test_client_roundtrip!(ClientToServerMsg::Key {
         key: KeyWithModifier {
             bare_key: BareKey::PageDown,
@@ -3748,6 +3786,65 @@ fn rename_active_pane_wire_roundtrip() {
 
     // proto struct → Rust
     let roundtrip: ClientToServerMsg = decoded
+        .try_into()
+        .expect("Failed to convert decoded protobuf back to Rust");
+
+    assert_eq!(original, roundtrip);
+}
+
+#[test]
+fn set_pane_metadata_wire_roundtrip() {
+    use prost::Message;
+
+    let original = ClientToServerMsg::Action {
+        action: Action::SetPaneMetadata {
+            pane_id: PaneId::Terminal(0),
+            key: "nix_shell".to_owned(),
+            value: "devShell".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    };
+
+    let proto: crate::client_server_contract::client_server_contract::ClientToServerMsg =
+        original.clone().into();
+    let bytes = proto.encode_to_vec();
+    let decoded_proto =
+        crate::client_server_contract::client_server_contract::ClientToServerMsg::decode(
+            &bytes[..],
+        )
+        .expect("Failed to decode protobuf bytes");
+    let roundtrip: ClientToServerMsg = decoded_proto
+        .try_into()
+        .expect("Failed to convert decoded protobuf back to Rust");
+
+    assert_eq!(original, roundtrip);
+}
+
+#[test]
+fn delete_pane_metadata_wire_roundtrip() {
+    use prost::Message;
+
+    let original = ClientToServerMsg::Action {
+        action: Action::DeletePaneMetadata {
+            pane_id: PaneId::Plugin(2),
+            key: "is_helix".to_owned(),
+        },
+        terminal_id: Some(1),
+        client_id: Some(100),
+        is_cli_client: true,
+    };
+
+    let proto: crate::client_server_contract::client_server_contract::ClientToServerMsg =
+        original.clone().into();
+    let bytes = proto.encode_to_vec();
+    let decoded_proto =
+        crate::client_server_contract::client_server_contract::ClientToServerMsg::decode(
+            &bytes[..],
+        )
+        .expect("Failed to decode protobuf bytes");
+    let roundtrip: ClientToServerMsg = decoded_proto
         .try_into()
         .expect("Failed to convert decoded protobuf back to Rust");
 

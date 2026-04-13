@@ -811,6 +811,7 @@ impl From<crate::input::actions::Action>
             ConfirmAction,
             CopyAction,
             CurrentTabInfoAction,
+            DeletePaneMetadataAction,
             DenyAction,
             DetachAction,
             DumpLayoutAction,
@@ -892,13 +893,13 @@ impl From<crate::input::actions::Action>
             ScrollToTopByPaneIdAction,
             ScrollUpAction,
             ScrollUpAtAction,
-            // Pane-targeting
             ScrollUpByPaneIdAction,
             SearchAction,
             SearchInputAction,
             SearchToggleOptionAction,
             SetPaneBorderlessAction,
             SetPaneColorAction,
+            SetPaneMetadataAction,
             ShowFloatingPanesAction,
             SkipConfirmAction,
             StackPanesAction,
@@ -927,7 +928,6 @@ impl From<crate::input::actions::Action>
             UndoRenamePaneAction,
             UndoRenamePaneByPaneIdAction,
             UndoRenameTabAction,
-            // Tab-targeting
             UndoRenameTabByTabIdAction,
             WriteAction,
             WriteCharsAction,
@@ -1764,6 +1764,19 @@ impl From<crate::input::actions::Action>
                 ActionType::MoveTabByTabId(MoveTabByTabIdAction {
                     id,
                     direction: direction_to_proto_i32(direction),
+                })
+            },
+            crate::input::actions::Action::SetPaneMetadata { pane_id, key, value } => {
+                ActionType::SetPaneMetadata(SetPaneMetadataAction {
+                    pane_id: Some(pane_id.into()),
+                    key,
+                    value,
+                })
+            },
+            crate::input::actions::Action::DeletePaneMetadata { pane_id, key } => {
+                ActionType::DeletePaneMetadata(DeletePaneMetadataAction {
+                    pane_id: Some(pane_id.into()),
+                    key,
                 })
             },
         };
@@ -2690,6 +2703,25 @@ impl TryFrom<crate::client_server_contract::client_server_contract::Action>
                 Ok(crate::input::actions::Action::MoveTabByTabId {
                     id: a.id,
                     direction,
+                })
+            },
+            ActionType::SetPaneMetadata(action) => {
+                Ok(crate::input::actions::Action::SetPaneMetadata {
+                    pane_id: action
+                        .pane_id
+                        .ok_or_else(|| anyhow!("SetPaneMetadata missing pane_id"))?
+                        .try_into()?,
+                    key: action.key,
+                    value: action.value,
+                })
+            },
+            ActionType::DeletePaneMetadata(action) => {
+                Ok(crate::input::actions::Action::DeletePaneMetadata {
+                    pane_id: action
+                        .pane_id
+                        .ok_or_else(|| anyhow!("DeletePaneMetadata missing pane_id"))?
+                        .try_into()?,
+                    key: action.key,
                 })
             },
         }
