@@ -204,6 +204,9 @@ enum CommandName {
   OpenPluginPaneFloating = 209;
   ListWindowsVolumes = 210;
   GetSessionList = 211;
+  SetPaneMetadata = 212;
+  GetPaneMetadata = 213;
+  DeletePaneMetadata = 214;
 }
 
 message PluginCommand {
@@ -356,6 +359,9 @@ message PluginCommand {
     ClearPaneHighlightsPayload clear_pane_highlights_payload = 159;
     OpenPluginPaneFloatingPayload open_plugin_pane_floating_payload = 160;
     GetSessionListPayload get_session_list_payload = 161;
+    SetPaneMetadataPayload set_pane_metadata_payload = 162;
+    GetPaneMetadataPayload get_pane_metadata_payload = 163;
+    DeletePaneMetadataPayload delete_pane_metadata_payload = 164;
   }
 }
 
@@ -1308,6 +1314,29 @@ message SessionListSnapshot {
 message GetSessionListResponse {
   oneof result {
     SessionListSnapshot snapshot = 1;
+    string error = 2;
+  }
+}
+
+message SetPaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message GetPaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+}
+
+message DeletePaneMetadataPayload {
+  PaneId pane_id = 1;
+  string key = 2;
+}
+
+message GetPaneMetadataResponse {
+  oneof result {
+    string value = 1;
     string error = 2;
   }
 }
