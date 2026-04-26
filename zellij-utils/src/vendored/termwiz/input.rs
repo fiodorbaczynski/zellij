@@ -1130,21 +1130,20 @@ impl InputParser {
             (";6", Modifiers::CTRL | Modifiers::SHIFT),
             (";7", Modifiers::CTRL | Modifiers::ALT),
             (";8", Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT),
-        ];
-        let meta = Modifiers::ALT;
-        let meta_modifier_combos = &[
-            (";9", meta),
-            (";10", meta | Modifiers::SHIFT),
-            (";11", meta | Modifiers::ALT),
-            (";12", meta | Modifiers::ALT | Modifiers::SHIFT),
-            (";13", meta | Modifiers::CTRL),
-            (";14", meta | Modifiers::CTRL | Modifiers::SHIFT),
-            (";15", meta | Modifiers::CTRL | Modifiers::ALT),
+            // Kitty keyboard protocol: Super modifier (bit 3 = 8)
+            (";9", Modifiers::SUPER),
+            (";10", Modifiers::SUPER | Modifiers::SHIFT),
+            (";11", Modifiers::SUPER | Modifiers::ALT),
+            (";12", Modifiers::SUPER | Modifiers::ALT | Modifiers::SHIFT),
+            (";13", Modifiers::SUPER | Modifiers::CTRL),
+            (";14", Modifiers::SUPER | Modifiers::CTRL | Modifiers::SHIFT),
+            (";15", Modifiers::SUPER | Modifiers::CTRL | Modifiers::ALT),
             (
                 ";16",
-                meta | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT,
+                Modifiers::SUPER | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT,
             ),
         ];
+        let meta_modifier_combos: &[(&str, Modifiers)] = &[];
 
         let modifier_combos_including_meta =
             || modifier_combos.iter().chain(meta_modifier_combos.iter());
@@ -2475,6 +2474,90 @@ mod test {
             vec![InputEvent::Key(KeyEvent {
                 modifiers: Modifiers::NONE,
                 key: KeyCode::UpArrow,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_modifier_char_csi_u() {
+        let mut p = InputParser::new();
+        // CSI 97 ; 9 u = 'a' with Super (modifier param 9 = Super)
+        let inputs = p.parse_as_vec(b"\x1b[97;9u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER,
+                key: KeyCode::Char('a'),
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_shift_modifier_csi_u() {
+        let mut p = InputParser::new();
+        // modifier param 10 = Super | Shift
+        let inputs = p.parse_as_vec(b"\x1b[97;10u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER | Modifiers::SHIFT,
+                key: KeyCode::Char('a'),
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_ctrl_modifier_csi_u() {
+        let mut p = InputParser::new();
+        // modifier param 13 = Super | Ctrl
+        let inputs = p.parse_as_vec(b"\x1b[97;13u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER | Modifiers::CTRL,
+                key: KeyCode::Char('a'),
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_all_modifiers_csi_u() {
+        let mut p = InputParser::new();
+        // modifier param 16 = Super | Ctrl | Alt | Shift
+        let inputs = p.parse_as_vec(b"\x1b[97;16u", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT,
+                key: KeyCode::Char('a'),
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_modifier_arrow_key() {
+        let mut p = InputParser::new();
+        // CSI 1 ; 9 A = Up arrow with Super
+        let inputs = p.parse_as_vec(b"\x1b[1;9A", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER,
+                key: KeyCode::UpArrow,
+            })],
+            inputs
+        );
+    }
+
+    #[test]
+    fn super_modifier_function_key() {
+        let mut p = InputParser::new();
+        // CSI 1 ; 9 P = F1 with Super
+        let inputs = p.parse_as_vec(b"\x1b[1;9P", NO_MORE);
+        assert_eq!(
+            vec![InputEvent::Key(KeyEvent {
+                modifiers: Modifiers::SUPER,
+                key: KeyCode::Function(1),
             })],
             inputs
         );
