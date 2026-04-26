@@ -1,13 +1,13 @@
 use super::super::TerminalPane;
 use crate::panes::sixel::SixelImageStore;
 use crate::panes::LinkHandler;
-use crate::tab::Pane;
+use crate::tab::{AdjustedInput, Pane};
 use insta::assert_snapshot;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use zellij_utils::{
-    data::{Palette, Style},
+    data::{BareKey, KeyWithModifier, Palette, Style},
     pane_size::{Offset, PaneGeom, SizeInPixels},
     position::Position,
 };
@@ -872,4 +872,111 @@ pub fn frameless_pane_position_is_on_frame() {
     assert!(!terminal_pane.position_is_on_frame(&Position::new(30, 70)));
     assert!(!terminal_pane.position_is_on_frame(&Position::new(30, 130)));
     assert!(!terminal_pane.position_is_on_frame(&Position::new(30, 131)));
+}
+
+fn new_terminal_pane() -> TerminalPane {
+    let mut fake_win_size = PaneGeom::default();
+    fake_win_size.cols.set_inner(80);
+    fake_win_size.rows.set_inner(24);
+    let pid = 1;
+    let style = Style::default();
+    let sixel_image_store = Rc::new(RefCell::new(SixelImageStore::default()));
+    let terminal_emulator_colors = Rc::new(RefCell::new(Palette::default()));
+    let terminal_emulator_color_codes = Rc::new(RefCell::new(HashMap::new()));
+    let debug = false;
+    let arrow_fonts = true;
+    let styled_underlines = true;
+    let osc8_hyperlinks = true;
+    let explicitly_disable_kitty_keyboard_protocol = false;
+    TerminalPane::new(
+        pid,
+        fake_win_size,
+        style,
+        0,
+        String::new(),
+        Rc::new(RefCell::new(LinkHandler::new())),
+        Rc::new(RefCell::new(None)),
+        sixel_image_store,
+        terminal_emulator_colors,
+        terminal_emulator_color_codes,
+        None,
+        None,
+        debug,
+        arrow_fonts,
+        styled_underlines,
+        osc8_hyperlinks,
+        explicitly_disable_kitty_keyboard_protocol,
+        None,
+    )
+}
+
+#[test]
+fn kitty_ctrl_c_downconverted_to_sigint_byte() {
+    let mut terminal_pane = new_terminal_pane();
+    let key = Some(KeyWithModifier::new(BareKey::Char('c')).with_ctrl_modifier());
+    let kitty_raw_bytes = b"\x1b[99;5u".to_vec();
+
+    let result = terminal_pane.adjust_input_to_terminal(&key, kitty_raw_bytes, true, None);
+
+    match result {
+        Some(AdjustedInput::WriteBytesToTerminal(bytes)) => assert_eq!(bytes, vec![0x03]),
+        other => panic!("expected WriteBytesToTerminal(0x03), got {:?}", other),
+    }
+}
+
+#[test]
+fn kitty_ctrl_z_downconverted_to_sigtstp_byte() {
+    let mut terminal_pane = new_terminal_pane();
+    let key = Some(KeyWithModifier::new(BareKey::Char('z')).with_ctrl_modifier());
+    let kitty_raw_bytes = b"\x1b[122;5u".to_vec();
+
+    let result = terminal_pane.adjust_input_to_terminal(&key, kitty_raw_bytes, true, None);
+
+    match result {
+        Some(AdjustedInput::WriteBytesToTerminal(bytes)) => assert_eq!(bytes, vec![0x1a]),
+        other => panic!("expected WriteBytesToTerminal(0x1a), got {:?}", other),
+    }
+}
+
+#[test]
+fn kitty_input_without_parsed_key_falls_back_to_raw_bytes() {
+    let mut terminal_pane = new_terminal_pane();
+    let key: Option<KeyWithModifier> = None;
+    let kitty_raw_bytes = b"\x1b[57376;5u".to_vec();
+
+    let result = terminal_pane.adjust_input_to_terminal(&key, kitty_raw_bytes.clone(), true, None);
+
+    match result {
+        Some(AdjustedInput::WriteBytesToTerminal(bytes)) => assert_eq!(bytes, kitty_raw_bytes),
+        other => panic!("expected WriteBytesToTerminal with raw bytes, got {:?}", other),
+    }
+}
+
+#[test]
+fn non_kitty_input_passed_through_unchanged() {
+    let mut terminal_pane = new_terminal_pane();
+    let key = Some(KeyWithModifier::new(BareKey::Char('a')));
+    let raw_bytes = b"a".to_vec();
+
+    let result = terminal_pane.adjust_input_to_terminal(&key, raw_bytes.clone(), false, None);
+
+    match result {
+        Some(AdjustedInput::WriteBytesToTerminal(bytes)) => assert_eq!(bytes, raw_bytes),
+        other => panic!("expected WriteBytesToTerminal with raw bytes, got {:?}", other),
+    }
+}
+
+#[test]
+fn kitty_input_passed_through_when_pane_supports_kitty() {
+    let mut terminal_pane = new_terminal_pane();
+    terminal_pane.handle_pty_bytes(b"\x1b[>1u".to_vec());
+    let key = Some(KeyWithModifier::new(BareKey::Char('c')).with_ctrl_modifier());
+    let kitty_raw_bytes = b"\x1b[99;5u".to_vec();
+
+    let result = terminal_pane.adjust_input_to_terminal(&key, kitty_raw_bytes.clone(), true, None);
+
+    match result {
+        Some(AdjustedInput::WriteBytesToTerminal(bytes)) => assert_eq!(bytes, kitty_raw_bytes),
+        other => panic!("expected WriteBytesToTerminal with raw kitty bytes, got {:?}", other),
+    }
 }
