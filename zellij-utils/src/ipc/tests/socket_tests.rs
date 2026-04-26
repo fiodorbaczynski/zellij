@@ -410,3 +410,89 @@ fn socket_directory_enumeration_finds_sockets() {
     assert_eq!(entries.len(), 1, "should find exactly one socket");
     assert_eq!(entries[0], "test-session");
 }
+
+// --- Session rename tests ---
+// These verify the socket-level behavior that the fix/session-rename-env patch
+// depends on: after RenameSession does fs::rename on the socket file,
+// ipc_connect at the old path returns Err immediately and the old name
+// disappears from directory enumeration (get_sessions).
+
+#[cfg(unix)]
+#[test]
+fn ipc_connect_fails_for_nonexistent_socket_path() {
+    use crate::consts::ipc_connect;
+    let dir = tempfile::TempDir::new().expect("failed to create temp dir");
+    let path = dir.path().join("no-such-session.sock");
+    assert!(
+        ipc_connect(&path).is_err(),
+        "ipc_connect should return Err for a path with no socket"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn socket_unreachable_at_old_path_after_rename() {
+    use crate::consts::ipc_connect;
+    let (_guard, name) = new_ipc();
+    let _listener = bind_listener(&name);
+
+    let new_name: IpcName = name.parent().unwrap().join("renamed-session");
+
+    assert!(
+        ipc_connect(&name).is_ok(),
+        "should connect at original path"
+    );
+
+    std::fs::rename(&name, &new_name).expect("fs::rename failed");
+
+    assert!(
+        ipc_connect(&name).is_err(),
+        "should fail at original path after rename"
+    );
+    assert!(
+        ipc_connect(&new_name).is_ok(),
+        "should connect at new path after rename"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn renamed_socket_absent_from_directory_listing() {
+    use std::os::unix::fs::FileTypeExt;
+
+    let dir = tempfile::TempDir::new().expect("failed to create temp dir");
+    let path_a: IpcName = dir.path().join("session-a");
+    let path_b: IpcName = dir.path().join("session-b");
+    let path_a_new = dir.path().join("session-a-renamed");
+
+    let _listener_a = bind_listener(&path_a);
+    let _listener_b = bind_listener(&path_b);
+
+    let enumerate = |dir_path: &std::path::Path| -> Vec<String> {
+        std::fs::read_dir(dir_path)
+            .unwrap()
+            .filter_map(|e| {
+                let e = e.ok()?;
+                if e.file_type().ok()?.is_socket() {
+                    e.file_name().into_string().ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    };
+
+    let before = enumerate(dir.path());
+    assert!(before.contains(&"session-a".to_string()));
+    assert!(before.contains(&"session-b".to_string()));
+
+    std::fs::rename(&path_a, &path_a_new).expect("rename failed");
+
+    let after = enumerate(dir.path());
+    assert!(
+        !after.contains(&"session-a".to_string()),
+        "old name should no longer appear"
+    );
+    assert!(after.contains(&"session-b".to_string()));
+    assert!(after.contains(&"session-a-renamed".to_string()));
+}
