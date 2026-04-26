@@ -3216,9 +3216,9 @@ mod tests {
             PluginCapabilities::default(),
             ClientAttributes::default(),
             None,
-            Box::new(Layout::default()),
+            &Layout::default(),
             None,
-            Keybinds::default(),
+            &Keybinds::default(),
             InputMode::Normal,
             None,
         );
@@ -3257,9 +3257,9 @@ mod tests {
             PluginCapabilities::default(),
             ClientAttributes::default(),
             None,
-            Box::new(Layout::default()),
+            &Layout::default(),
             None,
-            Keybinds::default(),
+            &Keybinds::default(),
             InputMode::Normal,
             None,
         );
