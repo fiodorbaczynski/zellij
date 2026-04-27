@@ -19,6 +19,7 @@ pub use super::generated_api::api::{
         PaneContents as ProtobufPaneContents, PaneContentsEntry as ProtobufPaneContentsEntry,
         PaneId as ProtobufPaneId, PaneInfo as ProtobufPaneInfo,
         PaneManifest as ProtobufPaneManifest, PaneMetadata as ProtobufPaneMetadata,
+        PaneMetadataUpdatePayload as ProtobufPaneMetadataUpdatePayload,
         PaneRenderReportPayload as ProtobufPaneRenderReportPayload,
         PaneScrollbackResponse as ProtobufPaneScrollbackResponse, PaneType as ProtobufPaneType,
         PluginConfigurationChangedPayload as ProtobufPluginConfigurationChangedPayload,
@@ -577,6 +578,16 @@ impl TryFrom<ProtobufEvent> for Event {
                     Ok(Event::InitialKeybinds(keybinds))
                 },
                 _ => Err("Malformed payload for InitialKeybinds Event"),
+            },
+            Some(ProtobufEventType::PaneMetadataUpdate) => match protobuf_event.payload {
+                Some(ProtobufEventPayload::PaneMetadataUpdatePayload(p)) => {
+                    let pane_id = p
+                        .pane_id
+                        .ok_or("Missing pane_id in PaneMetadataUpdate")?
+                        .try_into()?;
+                    Ok(Event::PaneMetadataUpdate(pane_id, p.metadata.into_iter().collect()))
+                },
+                _ => Err("Malformed payload for PaneMetadataUpdate Event"),
             },
             None => Err("Unknown Protobuf Event"),
         }
@@ -1141,6 +1152,15 @@ impl TryFrom<Event> for ProtobufEvent {
                     )),
                 })
             },
+            Event::PaneMetadataUpdate(pane_id, metadata) => Ok(ProtobufEvent {
+                name: ProtobufEventType::PaneMetadataUpdate as i32,
+                payload: Some(event::Payload::PaneMetadataUpdatePayload(
+                    PaneMetadataUpdatePayload {
+                        pane_id: pane_id.try_into().ok(),
+                        metadata: metadata.into_iter().collect(),
+                    },
+                )),
+            }),
         }
     }
 }
@@ -1714,6 +1734,7 @@ impl TryFrom<ProtobufPaneInfo> for PaneInfo {
                 .collect(),
             default_fg: protobuf_pane_info.default_fg,
             default_bg: protobuf_pane_info.default_bg,
+            metadata: protobuf_pane_info.metadata.into_iter().collect(),
         })
     }
 }
@@ -1759,6 +1780,7 @@ impl TryFrom<PaneInfo> for ProtobufPaneInfo {
                 .collect(),
             default_fg: pane_info.default_fg,
             default_bg: pane_info.default_bg,
+            metadata: pane_info.metadata.into_iter().collect(),
         })
     }
 }
@@ -2057,6 +2079,7 @@ impl TryFrom<ProtobufEventType> for EventType {
             ProtobufEventType::PluginConfigurationChanged => EventType::PluginConfigurationChanged,
             ProtobufEventType::HighlightClicked => EventType::HighlightClicked,
             ProtobufEventType::InitialKeybinds => EventType::InitialKeybinds,
+            ProtobufEventType::PaneMetadataUpdate => EventType::PaneMetadataUpdate,
         })
     }
 }
@@ -2110,6 +2133,7 @@ impl TryFrom<EventType> for ProtobufEventType {
             EventType::PluginConfigurationChanged => ProtobufEventType::PluginConfigurationChanged,
             EventType::HighlightClicked => ProtobufEventType::HighlightClicked,
             EventType::InitialKeybinds => ProtobufEventType::InitialKeybinds,
+            EventType::PaneMetadataUpdate => ProtobufEventType::PaneMetadataUpdate,
         })
     }
 }
@@ -2677,6 +2701,7 @@ fn serialize_session_update_event_with_non_default_values() {
             index_in_pane_group: index_in_pane_group_1,
             default_fg: None,
             default_bg: None,
+            metadata: Default::default(),
         },
         PaneInfo {
             id: 1,
@@ -2704,6 +2729,7 @@ fn serialize_session_update_event_with_non_default_values() {
             index_in_pane_group: index_in_pane_group_2,
             default_fg: None,
             default_bg: None,
+            metadata: Default::default(),
         },
     ];
     panes.insert(0, panes_list);
@@ -3075,5 +3101,52 @@ fn serialize_pane_render_report_with_ansi_event_with_data() {
     assert_eq!(
         event, deserialized_event,
         "PaneRenderReportWithAnsi event with ANSI data properly serialized/deserialized"
+    );
+}
+
+#[test]
+fn serialize_pane_metadata_update_event_empty() {
+    use prost::Message;
+    let event = Event::PaneMetadataUpdate(PaneId::Terminal(1), BTreeMap::new());
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate with empty metadata roundtrips correctly"
+    );
+}
+
+#[test]
+fn serialize_pane_metadata_update_event_with_data() {
+    use prost::Message;
+    let mut metadata = BTreeMap::new();
+    metadata.insert("nix_shell".to_owned(), "devShell".to_owned());
+    metadata.insert("is_helix".to_owned(), "true".to_owned());
+    let event = Event::PaneMetadataUpdate(PaneId::Terminal(42), metadata);
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate with multiple keys roundtrips correctly"
+    );
+}
+
+#[test]
+fn serialize_pane_metadata_update_event_plugin_pane() {
+    use prost::Message;
+    let mut metadata = BTreeMap::new();
+    metadata.insert("role".to_owned(), "status-bar".to_owned());
+    let event = Event::PaneMetadataUpdate(PaneId::Plugin(7), metadata);
+    let protobuf_event: ProtobufEvent = event.clone().try_into().unwrap();
+    let serialized = protobuf_event.encode_to_vec();
+    let deserialized_protobuf: ProtobufEvent = Message::decode(serialized.as_slice()).unwrap();
+    let deserialized: Event = deserialized_protobuf.try_into().unwrap();
+    assert_eq!(
+        event, deserialized,
+        "PaneMetadataUpdate for plugin pane roundtrips correctly"
     );
 }
