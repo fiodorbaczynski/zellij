@@ -109,6 +109,9 @@ mod not_wasm {
         if termwiz_modifiers.contains(Modifiers::SHIFT) {
             modifiers.insert(KeyModifier::Shift);
         }
+        if termwiz_modifiers.contains(Modifiers::SUPER) {
+            modifiers.insert(KeyModifier::Super);
+        }
 
         match event.key {
             KeyCode::Char(c) => {
@@ -506,5 +509,66 @@ mod windows_key_tests {
             b"\x1b[13;5u".to_vec(),
             "Ctrl+Enter should get CSI u encoding"
         );
+    }
+}
+
+#[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
+mod test {
+    use super::parse_keys;
+    use crate::data::{BareKey, KeyModifier, KeyWithModifier};
+
+    #[test]
+    fn parse_super_char() {
+        // CSI 97 ; 9 u = 'a' with Super
+        let keys = parse_keys(b"\x1b[97;9u");
+        assert_eq!(
+            keys,
+            vec![KeyWithModifier::new(BareKey::Char('a')).with_super_modifier()]
+        );
+    }
+
+    #[test]
+    fn parse_super_ctrl_char() {
+        // modifier param 13 = Super | Ctrl
+        let keys = parse_keys(b"\x1b[97;13u");
+        let mut expected = KeyWithModifier::new(BareKey::Char('a'));
+        expected.key_modifiers.insert(KeyModifier::Ctrl);
+        expected.key_modifiers.insert(KeyModifier::Super);
+        assert_eq!(keys, vec![expected]);
+    }
+
+    #[test]
+    fn parse_super_shift_alt_ctrl_char() {
+        // modifier param 16 = Super | Ctrl | Alt | Shift
+        let keys = parse_keys(b"\x1b[97;16u");
+        let mut expected = KeyWithModifier::new(BareKey::Char('a'));
+        expected.key_modifiers.insert(KeyModifier::Shift);
+        expected.key_modifiers.insert(KeyModifier::Alt);
+        expected.key_modifiers.insert(KeyModifier::Ctrl);
+        expected.key_modifiers.insert(KeyModifier::Super);
+        assert_eq!(keys, vec![expected]);
+    }
+
+    #[test]
+    fn parse_super_arrow_key() {
+        // CSI 1 ; 9 A = Up with Super
+        let keys = parse_keys(b"\x1b[1;9A");
+        assert_eq!(
+            keys,
+            vec![KeyWithModifier::new(BareKey::Up).with_super_modifier()]
+        );
+    }
+
+    #[test]
+    fn ctrl_without_super_unchanged() {
+        // modifier param 5 = Ctrl (no Super)
+        let keys = parse_keys(b"\x1b[97;5u");
+        assert_eq!(
+            keys,
+            vec![KeyWithModifier::new(BareKey::Char('a')).with_ctrl_modifier()]
+        );
+        let key = &keys[0];
+        assert!(!key.key_modifiers.contains(&KeyModifier::Super));
     }
 }
